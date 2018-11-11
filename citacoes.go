@@ -1,3 +1,7 @@
+// Bug: O voto em sua própria resposta não vale.
+// Bug: Linha depois do texto na escolha.
+// Bug: Quem votou em qual e qual é a certa.
+// Bug: Novo jogo está zerando para todo mundo.
 package main
 
 import (
@@ -5,6 +9,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"time"
 )
 
 var (
@@ -23,7 +28,7 @@ var (
 		{"Se você não consegue explicar algo __________, você não entendeu suficientemente bem.", "Albert Einstein"},
 		{"A reputação de um médico se faz pelo número de pessoas famosas que __________.", "morrem sob seus cuidados"},
 		{"Se ferradura desse sorte __________.", "burro não puxava carroça"},
-		{"Marquei um encontro pela internet, quando cheguei lá a pessoas era __________.", "meu irmão"},
+		{"Marquei um encontro pela internet, quando cheguei lá a pessoa era __________.", "meu irmão"},
 		{"Por que o youtuber foi ao dentista? Porque ele queria __________.", "fazer um canal"},
 		{"Pareço normal, mas já fui no dicionário procurar o que era __________.", "dicionário"},
 		{"Por que vocs preocupais com __________? Olhai como crescem os lírios do campo! Jesus de Nazaré.", "vestuário"},
@@ -34,13 +39,21 @@ var (
 		{"Quem pensa pouco, __________ muito. Leonardo Da Vinci.", "erra"},
 		{"Toda a música que não __________ é apenas um ruído. D'Alembert.", "pinta nada"},
 		{"A harmonia se obtém pela __________. Platão", "virtude"},
-		{"Antes de fazer alguma coisa, pense. Quando achar que já pode fazê-la, __________. Pitágoras.", "pense novamente"}}
+		{"Antes de fazer alguma coisa, pense. Quando achar que já pode fazê-la, __________. Pitágoras.", "pense novamente"},
+		{"Minhas refeição e minhas __________ gastronômicas. Título de blog.", "reflexão"},
+		{"Deus ama ao que __________ com alegria. Coríntios 9:7.", "dá"},
+		{"Feliz aquele que pegar em teus filhos e der com eles __________. Salmos 137:9.", "nas pedras"},
+		{"Eis que reprovarei a vossa semente, e espalharei __________ sobre os vossos rostos. Malaquia 2:3.", "esterco"},
+		{"Samaria virá a ser deserta, porque se rebelou contra o seu Deus; cairão à espada, seus filhos serão despedaçados, e as suas __________ serão fendidas pelo meio. Oseias 13:16.", "grávidas"},
+		{"E __________ servirá de comida a todas as aves dos céus, e aos animais da terra; e ninguém os espantará. Deuteronômio 28:26.", "o teu cadáver"},
+		{}}
 	quoteIndex  int
 	submissions []submission
 	points      map[string]int
 )
 
 func main() {
+	rand.Seed(time.Now().Unix())
 	clear()
 	http.HandleFunc("/", writeAnswerHandler)
 	http.HandleFunc("/answerWritten", answerWrittenHandler)

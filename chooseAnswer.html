@@ -5,7 +5,7 @@
     <title>title</title>
   </head>
   <body>
-    {{.Text}}
+    {{.Text}}<br/>
     {{ range .Answers }}
     <a href="answerChosen?name={{$.Name}}&answer={{.}}">{{.}}</a><br/>
     {{ end }}
