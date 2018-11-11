@@ -1,4 +1,3 @@
-// Bug: Quem votou em qual e qual é a certa.
 // Bug: Voltar à tela inicial pode reiniciar antes de alguém ver resultados
 package main
 
