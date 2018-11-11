@@ -5,6 +5,8 @@
     <title>title</title>
   </head>
   <body>
+    {{.Quote.Text}}<br/>
+    A resposta certa é <strong>{{.Quote.Truth}}</strong>.<br/>
     {{range $name, $point := .Points}}
     {{$name}}: {{$point}}<br/>
     {{end}}
