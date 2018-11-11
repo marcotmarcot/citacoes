@@ -3,6 +3,7 @@
   <head>
     <meta charset="utf-8">
     <title>Resultados</title>
+    <meta http-equiv="refresh" content="2">
   </head>
   <body>
     {{.Quote.Text}}<br/>
@@ -24,6 +25,14 @@
       </li>
       {{end}}
     </ul>
+	Jogadores preparados:
+	<br>
+	<br>
+	<ol>
+	{{range .PlayersReady}}
+	  <li><strong>{{.}}</strong></li>
+	{{end}}
+	</ol>
     <a href="/?name={{.Name}}&clear=1">Jogar de novo</a>
   </body>
 </html>
