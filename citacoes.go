@@ -2,16 +2,24 @@
 // Bug: Quem votou em qual e qual é a certa.
 // Bug: Novo jogo está zerando para todo mundo.
 // Bug: Fazer tolower das respostas
+// Bug: Voltar à tela inicial pode reiniciar antes de alguém ver resultados
 package main
 
 import (
 	"encoding/csv"
+	"fmt"
 	"html/template"
 	"log"
 	"math/rand"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
+)
+
+const (
+	written string = "escreveu"
+	chosen         = "escolheu"
 )
 
 var (
@@ -19,6 +27,8 @@ var (
 	quoteIndex  int
 	submissions []submission
 	points      map[string]int
+	players     map[string]string = map[string]string{}
+	numPlayers  int
 )
 
 func main() {
@@ -46,6 +56,7 @@ func main() {
 func clear() {
 	submissions = nil
 	points = make(map[string]int)
+	players = make(map[string]string)
 	quoteIndex = rand.Int() % len(quotes)
 }
 
@@ -54,14 +65,17 @@ func writeAnswerHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if r.FormValue("clear") == "1" {
+	name := r.FormValue("name")
+	_, ok := players[name]
+	if r.FormValue("clear") == "1" && ok {
 		clear()
 	}
-	t.Execute(w, writeAnswerInput{r.FormValue("name"), quotes[quoteIndex].text})
-}
-
-type writeAnswerInput struct {
-	Name, Quote string
+	type writeAnswerInput struct {
+		Name, Quote string
+		NumPlayers  int
+		Players     map[string]string
+	}
+	t.Execute(w, writeAnswerInput{name, quotes[quoteIndex].text, numPlayers, players})
 }
 
 func answerWrittenHandler(w http.ResponseWriter, r *http.Request) {
@@ -73,12 +87,35 @@ func answerWrittenHandler(w http.ResponseWriter, r *http.Request) {
 	if _, ok := points[name]; !ok {
 		points[name] = 0
 	}
-	submission := submission{name, r.FormValue("answer")}
-	submissions = append(submissions, submission)
-	t.Execute(w, submission)
+	if r.FormValue("numPlayers") != "" {
+		tmpNum, err := strconv.Atoi(r.FormValue("numPlayers"))
+		if err != nil {
+			log.Printf("%s cometeu um vacilo %s", name, err.Error())
+		} else {
+			numPlayers = tmpNum
+		}
+	}
+	s := submission{}
+	if players[name] != written {
+		players[name] = written
+		s = submission{name, r.FormValue("answer")}
+		submissions = append(submissions, s)
+	}
+	type template struct {
+		Name    string
+		Players map[string]string
+		Answer  string
+	}
+	t.Execute(w, template{name, players, s.Answer})
 }
 
 func chooseAnswerHandler(w http.ResponseWriter, r *http.Request) {
+	name := r.FormValue("name")
+	if !playersReady(written) {
+		url := fmt.Sprintf("/answerWritten?name=%s", name)
+		http.Redirect(w, r, url, 307)
+		return
+	}
 	t, err := template.ParseFiles("chooseAnswer.html")
 	if err != nil {
 		log.Fatal(err)
@@ -94,7 +131,7 @@ func chooseAnswerHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		answers = append(answers, answer)
 	}
-	t.Execute(w, chooseAnswerInput{r.FormValue("name"), quotes[quoteIndex].text, answers})
+	t.Execute(w, chooseAnswerInput{name, quotes[quoteIndex].text, answers})
 }
 
 type chooseAnswerInput struct {
@@ -109,23 +146,62 @@ func answerChosenHandler(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 	}
 	name := r.FormValue("name")
-	chosen := r.FormValue("answer")
-	for _, s := range submissions {
-		if chosen == s.Answer {
-			points[s.Name]++
+	if players[name] != chosen {
+		players[name] = chosen
+		chosen := r.FormValue("answer")
+		if chosen == quotes[quoteIndex].truth {
+			points[name]++
+		}
+		for _, s := range submissions {
+			if chosen == s.Answer {
+				points[s.Name]++
+			}
 		}
 	}
 
-	t.Execute(w, name)
+	type template struct {
+		Name    string
+		Players map[string]string
+	}
+	t.Execute(w, template{name, players})
 }
 
 func resultsHandler(w http.ResponseWriter, r *http.Request) {
+	name := r.FormValue("name")
+	if !playersReady(chosen) {
+		url := fmt.Sprintf("/answerChosen?name=%s", name)
+		http.Redirect(w, r, url, 307)
+		return
+	}
 	t, err := template.ParseFiles("results.html")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	t.Execute(w, resultsInput{r.FormValue("name"), points})
+	t.Execute(w, resultsInput{name, points})
+}
+
+func playersReady(state string) bool {
+	intRepr := func(s string) int {
+		num := -1
+		switch s {
+		case written:
+			num = 0
+		case chosen:
+			num = 1
+		}
+		return num
+	}
+	total := 0
+	for _, player := range players {
+		if intRepr(player) >= intRepr(state) {
+			total++
+		}
+	}
+	if total < numPlayers {
+		return false
+	}
+	return true
 }
 
 type resultsInput struct {
