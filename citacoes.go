@@ -124,7 +124,7 @@ func answerChosenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, s := range submissions {
 		if chosen == s.answer {
-			points[name]++
+			points[s.name]++
 		}
 	}
 
