@@ -206,11 +206,6 @@ func resultsHandler(w http.ResponseWriter, r *http.Request) {
 		Authors []string
 	}
 	players[name] = resulted
-	if len(getPlayersReady(resulted)) >= numPlayers {
-		url := fmt.Sprintf("/?name=%s&clear=1", name)
-		http.Redirect(w, r, url, 307)
-		return
-	}
 
 	c := map[string]authoredAnswer{}
 	for name, answer := range choices {
@@ -223,13 +218,15 @@ func resultsHandler(w http.ResponseWriter, r *http.Request) {
 		c[name] = authoredAnswer{answer, names}
 	}
 
+	ready := getPlayersReady(resulted)
 	t.Execute(w, struct {
 		Name         string
 		Quote        quote
 		Choices      map[string]authoredAnswer
 		Points       map[string]int
+		Missing      int
 		PlayersReady []string
-	}{name, quotes[quoteIndex], c, points, getPlayersReady(resulted)})
+	}{name, quotes[quoteIndex], c, points, numPlayers - len(ready), ready})
 }
 
 func getPlayersReady(state int) []string {

@@ -3,7 +3,9 @@
   <head>
     <meta charset="utf-8">
     <title>Resultados</title>
-    <meta http-equiv="refresh" content="2">
+    {{if lt .Missing 0 }}
+      <meta http-equiv="refresh" content="2">
+    {{end}}
   </head>
   <body>
     {{.Quote.Text}}<br/>
