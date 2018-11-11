@@ -25,7 +25,7 @@ var (
 	quoteIndex  int
 	submissions []submission
 	points      map[string]int
-	players     map[string]string = map[string]string{}
+	players     map[string]string
 	numPlayers  int
 )
 
@@ -68,12 +68,11 @@ func writeAnswerHandler(w http.ResponseWriter, r *http.Request) {
 	if r.FormValue("clear") == "1" && ok {
 		clear()
 	}
-	type writeAnswerInput struct {
+	t.Execute(w, struct {
 		Name, Quote string
 		NumPlayers  int
 		Players     map[string]string
-	}
-	t.Execute(w, writeAnswerInput{name, quotes[quoteIndex].text, numPlayers, players})
+	}{name, quotes[quoteIndex].text, numPlayers, players})
 }
 
 func answerWrittenHandler(w http.ResponseWriter, r *http.Request) {
@@ -99,12 +98,11 @@ func answerWrittenHandler(w http.ResponseWriter, r *http.Request) {
 		s = submission{name, r.FormValue("answer")}
 		submissions = append(submissions, s)
 	}
-	type template struct {
+	t.Execute(w, struct {
 		Name    string
 		Players map[string]string
 		Answer  string
-	}
-	t.Execute(w, template{name, players, s.Answer})
+	}{name, players, s.Answer})
 }
 
 func chooseAnswerHandler(w http.ResponseWriter, r *http.Request) {
@@ -129,13 +127,11 @@ func chooseAnswerHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		answers = append(answers, answer)
 	}
-	t.Execute(w, chooseAnswerInput{name, quotes[quoteIndex].text, answers})
-}
-
-type chooseAnswerInput struct {
-	Name    string
-	Text    string
-	Answers []string
+	t.Execute(w, struct {
+		Name    string
+		Text    string
+		Answers []string
+	}{name, quotes[quoteIndex].text, answers})
 }
 
 func answerChosenHandler(w http.ResponseWriter, r *http.Request) {
@@ -157,11 +153,10 @@ func answerChosenHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	type template struct {
+	t.Execute(w, struct {
 		Name    string
 		Players map[string]string
-	}
-	t.Execute(w, template{name, players})
+	}{name, players})
 }
 
 func resultsHandler(w http.ResponseWriter, r *http.Request) {
@@ -176,7 +171,10 @@ func resultsHandler(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 	}
 
-	t.Execute(w, resultsInput{name, points})
+	t.Execute(w, struct {
+		Name   string
+		Points map[string]int
+	}{name, points})
 }
 
 func playersReady(state string) bool {
@@ -200,11 +198,6 @@ func playersReady(state string) bool {
 		return false
 	}
 	return true
-}
-
-type resultsInput struct {
-	Name   string
-	Points map[string]int
 }
 
 type quote struct {
