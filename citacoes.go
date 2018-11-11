@@ -30,16 +30,6 @@ var (
 	numPlayers  int
 )
 
-func Shuffle(vals []quote) []quote {
-	r := rand.New(rand.NewSource(time.Now().Unix()))
-	ret := make([]quote, len(vals))
-	perm := r.Perm(len(vals))
-	for i, randIndex := range perm {
-		ret[i] = vals[randIndex]
-	}
-	return ret
-}
-
 func main() {
 	quotesFile, err := os.Open("citacoes.csv")
 	if err != nil {
@@ -235,4 +225,12 @@ type quote struct {
 
 type submission struct {
 	Name, Answer string
+}
+
+func Shuffle(vals []quote) []quote {
+	ret := make([]quote, len(vals))
+	for i, randIndex := range rand.Perm(len(vals)) {
+		ret[i] = vals[randIndex]
+	}
+	return ret
 }
