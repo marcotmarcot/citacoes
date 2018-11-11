@@ -1,10 +1,7 @@
-// Bug: O voto em sua própria resposta não vale.
 // Bug: Linha depois do texto na escolha.
 // Bug: Quem votou em qual e qual é a certa.
 // Bug: Novo jogo está zerando para todo mundo.
-// Bug: Não dar ponto de quem voto no seu mesmo
-// Bug: Não exibir respostas duplicadas
-// Bug: Não exibir as próprias respostas
+// Bug: Fazer tolower das respostas
 package main
 
 import (
@@ -18,8 +15,7 @@ import (
 )
 
 var (
-	quotes = []quote{
-		{}}
+	quotes      []quote
 	quoteIndex  int
 	submissions []submission
 	points      map[string]int
@@ -50,7 +46,7 @@ func main() {
 func clear() {
 	submissions = nil
 	points = make(map[string]int)
-	quoteIndex = rand.Int()%len(quotes)
+	quoteIndex = rand.Int() % len(quotes)
 }
 
 func writeAnswerHandler(w http.ResponseWriter, r *http.Request) {
@@ -61,11 +57,11 @@ func writeAnswerHandler(w http.ResponseWriter, r *http.Request) {
 	if r.FormValue("clear") == "1" {
 		clear()
 	}
-	t.Execute(w, writeAnswerInput{quotes[quoteIndex].text, r.FormValue("name")})
+	t.Execute(w, writeAnswerInput{r.FormValue("name"), quotes[quoteIndex].text})
 }
 
 type writeAnswerInput struct {
-	Quote, Name string
+	Name, Quote string
 }
 
 func answerWrittenHandler(w http.ResponseWriter, r *http.Request) {
@@ -74,8 +70,12 @@ func answerWrittenHandler(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 	}
 	name := r.FormValue("name")
-	submissions = append(submissions, submission{name, r.FormValue("answer")})
-	t.Execute(w, r.FormValue("name"))
+	if _, ok := points[name]; !ok {
+		points[name] = 0
+	}
+	submission := submission{name, r.FormValue("answer")}
+	submissions = append(submissions, submission)
+	t.Execute(w, submission)
 }
 
 func chooseAnswerHandler(w http.ResponseWriter, r *http.Request) {
@@ -83,16 +83,23 @@ func chooseAnswerHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	answers := []string{quotes[quoteIndex].truth}
+	quote := quotes[quoteIndex]
+	truth := quote.truth
+	answers := []string{truth}
+	seen := map[string]bool{truth: true}
 	for _, p := range rand.Perm(len(submissions)) {
-		answers = append(answers, submissions[p].answer)
+		answer := submissions[p].Answer
+		if seen[answer] {
+			continue
+		}
+		answers = append(answers, answer)
 	}
 	t.Execute(w, chooseAnswerInput{r.FormValue("name"), quotes[quoteIndex].text, answers})
 }
 
 type chooseAnswerInput struct {
 	Name    string
-	Text string
+	Text    string
 	Answers []string
 }
 
@@ -103,12 +110,9 @@ func answerChosenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	name := r.FormValue("name")
 	chosen := r.FormValue("answer")
-	if chosen == quotes[quoteIndex].truth {
-		points[name]++
-	}
 	for _, s := range submissions {
-		if chosen == s.answer {
-			points[s.name]++
+		if chosen == s.Answer {
+			points[s.Name]++
 		}
 	}
 
@@ -134,5 +138,5 @@ type quote struct {
 }
 
 type submission struct {
-	name, answer string
+	Name, Answer string
 }
