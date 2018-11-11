@@ -81,10 +81,6 @@ func writeAnswerHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func answerWrittenHandler(w http.ResponseWriter, r *http.Request) {
-	t, err := template.ParseFiles("answerWritten.html")
-	if err != nil {
-		log.Fatal(err)
-	}
 	name := r.FormValue("name")
 	if _, ok := points[name]; !ok {
 		points[name] = 0
@@ -102,6 +98,15 @@ func answerWrittenHandler(w http.ResponseWriter, r *http.Request) {
 		players[name] = written
 		submissions = append(submissions, submission{name, answer})
 	}
+	if playersReady(written) {
+		url := fmt.Sprintf("/chooseAnswer?name=%s&answer=%s", name, answer)
+		http.Redirect(w, r, url, 307)
+		return
+	}
+	t, err := template.ParseFiles("answerWritten.html")
+	if err != nil {
+		log.Fatal(err)
+	}
 	t.Execute(w, struct {
 		Name    string
 		Players map[string]string
@@ -113,7 +118,7 @@ func chooseAnswerHandler(w http.ResponseWriter, r *http.Request) {
 	name := r.FormValue("name")
 	answer := r.FormValue("answer")
 	if !playersReady(written) {
-		url := fmt.Sprintf("/answerWritten?answer=%s&name=%s", answer, name)
+		url := fmt.Sprintf("/answerWritten?name=%s&answer=%s", name, answer)
 		http.Redirect(w, r, url, 307)
 		return
 	}
@@ -138,10 +143,6 @@ func chooseAnswerHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func answerChosenHandler(w http.ResponseWriter, r *http.Request) {
-	t, err := template.ParseFiles("answerChosen.html")
-	if err != nil {
-		log.Fatal(err)
-	}
 	name := r.FormValue("name")
 	answer := r.FormValue("answer")
 	if players[name] != chosen {
@@ -154,6 +155,15 @@ func answerChosenHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if playersReady(chosen) {
+		url := fmt.Sprintf("/results?name=%s", name)
+		http.Redirect(w, r, url, 307)
+		return
+	}
+	t, err := template.ParseFiles("answerChosen.html")
+	if err != nil {
+		log.Fatal(err)
+	}
 	t.Execute(w, struct {
 		Name    string
 		Players map[string]string
