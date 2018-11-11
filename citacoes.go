@@ -41,6 +41,7 @@ func main() {
 	for _, q := range quotesFields {
 		quotes = append(quotes, quote{q[0], q[1]})
 	}
+	points = make(map[string]int)
 	rand.Seed(time.Now().Unix())
 	clear()
 	http.HandleFunc("/", writeAnswerHandler)
@@ -53,7 +54,6 @@ func main() {
 
 func clear() {
 	submissions = nil
-	points = make(map[string]int)
 	players = make(map[string]string)
 	quoteIndex = rand.Int() % len(quotes)
 }
@@ -84,6 +84,7 @@ func answerWrittenHandler(w http.ResponseWriter, r *http.Request) {
 	if _, ok := points[name]; !ok {
 		points[name] = 0
 	}
+	answer := strings.ToLower(r.FormValue("answer"))
 	if r.FormValue("numPlayers") != "" {
 		tmpNum, err := strconv.Atoi(r.FormValue("numPlayers"))
 		if err != nil {
@@ -92,23 +93,22 @@ func answerWrittenHandler(w http.ResponseWriter, r *http.Request) {
 			numPlayers = tmpNum
 		}
 	}
-	s := submission{}
 	if players[name] != written {
 		players[name] = written
-		s = submission{name, strings.ToLower(r.FormValue("answer"))}
-		submissions = append(submissions, s)
+		submissions = append(submissions, submission{name, answer})
 	}
 	t.Execute(w, struct {
 		Name    string
 		Players map[string]string
 		Answer  string
-	}{name, players, s.Answer})
+	}{name, players, answer})
 }
 
 func chooseAnswerHandler(w http.ResponseWriter, r *http.Request) {
 	name := r.FormValue("name")
+	answer := r.FormValue("answer")
 	if !playersReady(written) {
-		url := fmt.Sprintf("/answerWritten?name=%s", name)
+		url := fmt.Sprintf("/answerWritten?answer=%s&name=%s", answer, name)
 		http.Redirect(w, r, url, 307)
 		return
 	}
@@ -121,11 +121,11 @@ func chooseAnswerHandler(w http.ResponseWriter, r *http.Request) {
 	answers := []string{truth}
 	seen := map[string]bool{truth: true}
 	for _, p := range rand.Perm(len(submissions)) {
-		answer := submissions[p].Answer
-		if seen[answer] || answer == r.FormValue("answer") {
+		a := submissions[p].Answer
+		if seen[a] || a == answer {
 			continue
 		}
-		answers = append(answers, answer)
+		answers = append(answers, a)
 	}
 	t.Execute(w, struct {
 		Name    string
