@@ -2,13 +2,13 @@
 <html lang="pt">
   <head>
     <meta charset="utf-8">
-    <title>title</title>
+    <title>Escreva sua resposta</title>
   </head>
   <body>
     <form action="/answerWritten" method="GET">
       {{.Quote}}<br/>
       Nome: <input type="text" name="name" value="{{.Name}}" pattern="{1,}" required/><br/>
-      Palavra: <input type="text" name="answer" pattern="{1,}" required/><br/>
+      Resposta: <input type="text" name="answer" pattern="{1,}" required/><br/>
 	  Número de jogadores: <input type="number" name="numPlayers" value="{{.NumPlayers}}" min="3"/><br/>
 	  Jogadores:
 	  <ul>
