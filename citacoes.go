@@ -1,5 +1,4 @@
 // Bug: Quem votou em qual e qual é a certa.
-// Bug: Fazer tolower das respostas
 // Bug: Voltar à tela inicial pode reiniciar antes de alguém ver resultados
 package main
 
@@ -12,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -95,7 +95,7 @@ func answerWrittenHandler(w http.ResponseWriter, r *http.Request) {
 	s := submission{}
 	if players[name] != written {
 		players[name] = written
-		s = submission{name, r.FormValue("answer")}
+		s = submission{name, strings.ToLower(r.FormValue("answer"))}
 		submissions = append(submissions, s)
 	}
 	t.Execute(w, struct {
