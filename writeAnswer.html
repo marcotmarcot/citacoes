@@ -12,8 +12,8 @@
 	  Número de jogadores: <input type="number" name="numPlayers" value="{{.NumPlayers}}" min="3"/><br/>
 	  Jogadores:
 	  <ul>
-	  {{range $key, $value := .Players}}
-	    <li><strong>{{$key}}</strong> {{$value}}</li>
+	  {{range $name := .Players}}
+	    <li><strong>{{$name}}</strong></li>
 	  {{end}}
       </ul>
       <input type="submit" value="Enviar"/><br/>
