@@ -1,6 +1,4 @@
-// Bug: Linha depois do texto na escolha.
 // Bug: Quem votou em qual e qual é a certa.
-// Bug: Novo jogo está zerando para todo mundo.
 // Bug: Fazer tolower das respostas
 package main
 
@@ -89,7 +87,7 @@ func chooseAnswerHandler(w http.ResponseWriter, r *http.Request) {
 	seen := map[string]bool{truth: true}
 	for _, p := range rand.Perm(len(submissions)) {
 		answer := submissions[p].Answer
-		if seen[answer] {
+		if seen[answer] || answer == r.FormValue("answer") {
 			continue
 		}
 		answers = append(answers, answer)
