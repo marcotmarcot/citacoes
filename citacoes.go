@@ -98,7 +98,7 @@ func answerWrittenHandler(w http.ResponseWriter, r *http.Request) {
 		players[name] = answered
 		submissions = append(submissions, submission{name, answer})
 	}
-	if len(getPlayersReady(answered)) < numPlayers {
+	if len(getPlayersReady(answered)) >= numPlayers {
 		url := fmt.Sprintf("/chooseAnswer?name=%s&answer=%s", name, answer)
 		http.Redirect(w, r, url, 307)
 		return
@@ -155,7 +155,7 @@ func answerChosenHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if len(getPlayersReady(chosen)) < numPlayers {
+	if len(getPlayersReady(chosen)) >= numPlayers {
 		url := fmt.Sprintf("/results?name=%s", name)
 		http.Redirect(w, r, url, 307)
 		return
