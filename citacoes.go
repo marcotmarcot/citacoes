@@ -143,8 +143,8 @@ func answerChosenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	name := r.FormValue("name")
 	answer := r.FormValue("answer")
-	choices[name] = answer
 	if players[name] != chosen {
+		choices[name] = answer
 		players[name] = chosen
 		for _, s := range submissions {
 			if answer == s.Answer {
