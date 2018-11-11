@@ -30,6 +30,16 @@ var (
 	numPlayers  int
 )
 
+func Shuffle(vals []quote) []quote {
+	r := rand.New(rand.NewSource(time.Now().Unix()))
+	ret := make([]quote, len(vals))
+	perm := r.Perm(len(vals))
+	for i, randIndex := range perm {
+		ret[i] = vals[randIndex]
+	}
+	return ret
+}
+
 func main() {
 	quotesFile, err := os.Open("citacoes.csv")
 	if err != nil {
@@ -44,7 +54,8 @@ func main() {
 	}
 	points = make(map[string]int)
 	rand.Seed(time.Now().Unix())
-	quoteIndex = rand.Int() % len(quotes)
+	quotes = Shuffle(quotes)
+	quoteIndex = 0
 	numPlayers = 3
 	clear()
 	http.HandleFunc("/", writeAnswerHandler)
