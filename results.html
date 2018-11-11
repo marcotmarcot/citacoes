@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="pt">
+  <head>
+    <meta charset="utf-8">
+    <title>title</title>
+  </head>
+  <body>
+    {{range $key, $value := .Points}}
+    {{$key}}: {{$value}}<br/>
+    {{end}}
+    <a href="/?name={{.Name}}&clear=1">Jogar de novo</a>
+  </body>
+</html>

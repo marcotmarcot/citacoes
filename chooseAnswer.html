@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="pt">
+  <head>
+    <meta charset="utf-8">
+    <title>title</title>
+  </head>
+  <body>
+    {{.Text}}
+    {{ range .Answers }}
+    <a href="answerChosen?name={{$.Name}}&answer={{.}}">{{.}}</a><br/>
+    {{ end }}
+    <br/>
+  </body>
+</html>
