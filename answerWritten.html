@@ -9,12 +9,12 @@
     Sua resposta foi enviada. Quando todos enviarem, clique em
     <a href="chooseAnswer?name={{.Name}}&answer={{.Answer}}">escolher resposta</a>.
     <br/>
-	Jogadores preparados:
-	<br>
-	<br>
+	Faltam <strong>{{$.Missing}}</strong>. Jogadores preparados:
+	<br/>
+	<br/>
 	<ul>
 	{{range $name := .PlayersReady}}
-	  <li><strong>{{$name}}</strong></li>
+	  <li><strong>{{.}}</strong></li>
 	{{end}}
     </ul>
   </body>
