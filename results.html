@@ -5,9 +5,23 @@
     <title>title</title>
   </head>
   <body>
-    {{range $key, $value := .Points}}
-    {{$key}}: {{$value}}<br/>
+    {{range $name, $point := .Points}}
+    {{$name}}: {{$point}}<br/>
     {{end}}
+    <ul>
+      {{range $name, $answer := .Choices}}
+      <li>
+        {{$name}} escolheu {{$answer.Answer}}, escrita por:
+        <ul>
+          {{range $answer.Authors}}
+          <li>
+            {{.}}
+          </li>
+          {{end}}
+        </ul>
+      </li>
+      {{end}}
+    </ul>
     <a href="/?name={{.Name}}&clear=1">Jogar de novo</a>
   </body>
 </html>

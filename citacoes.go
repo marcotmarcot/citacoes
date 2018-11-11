@@ -26,6 +26,7 @@ var (
 	submissions []submission
 	points      map[string]int
 	players     map[string]string
+	choices     map[string]string
 	numPlayers  int
 )
 
@@ -55,6 +56,7 @@ func clear() {
 	submissions = nil
 	points = make(map[string]int)
 	players = make(map[string]string)
+	choices = make(map[string]string)
 	quoteIndex = rand.Int() % len(quotes)
 }
 
@@ -140,14 +142,15 @@ func answerChosenHandler(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 	}
 	name := r.FormValue("name")
+	answer := r.FormValue("answer")
+	choices[name] = answer
 	if players[name] != chosen {
 		players[name] = chosen
-		chosen := r.FormValue("answer")
-		if chosen == quotes[quoteIndex].truth {
+		if answer == quotes[quoteIndex].truth {
 			points[name]++
 		}
 		for _, s := range submissions {
-			if chosen == s.Answer {
+			if answer == s.Answer {
 				points[s.Name]++
 			}
 		}
@@ -171,10 +174,30 @@ func resultsHandler(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 	}
 
+	type authoredAnswer struct {
+		Answer  string
+		Authors []string
+	}
+
+	c := map[string]authoredAnswer{}
+	for name, answer := range choices {
+		var names []string
+		if answer == quotes[quoteIndex].truth {
+			names = append(names, "CERTA!")
+		}
+		for _, s := range submissions {
+			if s.Answer == answer {
+				names = append(names, s.Name)
+			}
+		}
+		c[name] = authoredAnswer{answer, names}
+	}
+
 	t.Execute(w, struct {
-		Name   string
-		Points map[string]int
-	}{name, points})
+		Name    string
+		Choices map[string]authoredAnswer
+		Points  map[string]int
+	}{name, c, points})
 }
 
 func playersReady(state string) bool {
