@@ -9,6 +9,13 @@
       {{.Quote}}<br/>
       Nome: <input type="text" name="name" value="{{.Name}}"/><br/>
       Palavra: <input type="text" name="answer"/><br/>
+	  Número de jogadores: <input type="number" name="numPlayers" value="{{.NumPlayers}}"><br>
+	  Jogadores:
+	  <ul>
+	  {{range $key, $value := .Players}}
+	    <li><strong>{{$key}}</strong> {{$value}}</li>
+	  {{end}}
+      </ul>
       <input type="submit" value="Enviar"/><br/>
     </form>
   </body>

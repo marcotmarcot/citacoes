@@ -6,7 +6,10 @@
   </head>
   <body>
     Sua resposta foi enviada. Quando todos enviarem, clique em
-    <a href="results?name={{.}}">resultados</a>.
+    <a href="results?name={{.Name}}">resultados</a>.
     <br/>
+	{{range $key, $value := .Players}}
+	  <li><strong>{{$key}}</strong> {{$value}}</li>
+	{{end}}
   </body>
 </html>
