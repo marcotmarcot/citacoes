@@ -15,8 +15,9 @@ import (
 )
 
 const (
-	written string = "escreveu"
-	chosen         = "escolheu"
+	answered int = iota + 1
+	chosen
+	resulted
 )
 
 var (
@@ -24,7 +25,7 @@ var (
 	quoteIndex  int
 	submissions []submission
 	points      map[string]int
-	players     map[string]string
+	players     map[string]int
 	choices     map[string]string
 	numPlayers  int
 )
@@ -57,7 +58,7 @@ func main() {
 
 func clear() {
 	submissions = nil
-	players = make(map[string]string)
+	players = make(map[string]int)
 	choices = make(map[string]string)
 	quoteIndex++
 }
@@ -75,8 +76,8 @@ func writeAnswerHandler(w http.ResponseWriter, r *http.Request) {
 	t.Execute(w, struct {
 		Name, Quote string
 		NumPlayers  int
-		Players     map[string]string
-	}{name, quotes[quoteIndex].Text, numPlayers, players})
+		Players     []string
+	}{name, quotes[quoteIndex].Text, numPlayers, getPlayersReady(0)})
 }
 
 func answerWrittenHandler(w http.ResponseWriter, r *http.Request) {
@@ -93,11 +94,11 @@ func answerWrittenHandler(w http.ResponseWriter, r *http.Request) {
 			numPlayers = tmpNum
 		}
 	}
-	if players[name] != written {
-		players[name] = written
+	if players[name] < answered {
+		players[name] = answered
 		submissions = append(submissions, submission{name, answer})
 	}
-	if playersReady(written) {
+	if len(getPlayersReady(answered)) >= numPlayers {
 		url := fmt.Sprintf("/chooseAnswer?name=%s&answer=%s", name, answer)
 		http.Redirect(w, r, url, 307)
 		return
@@ -107,16 +108,16 @@ func answerWrittenHandler(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 	}
 	t.Execute(w, struct {
-		Name    string
-		Players map[string]string
-		Answer  string
-	}{name, players, answer})
+		Name         string
+		PlayersReady []string
+		Answer       string
+	}{name, getPlayersReady(answered), answer})
 }
 
 func chooseAnswerHandler(w http.ResponseWriter, r *http.Request) {
 	name := r.FormValue("name")
 	answer := r.FormValue("answer")
-	if !playersReady(written) {
+	if len(getPlayersReady(answered)) < numPlayers {
 		url := fmt.Sprintf("/answerWritten?name=%s&answer=%s", name, answer)
 		http.Redirect(w, r, url, 307)
 		return
@@ -144,7 +145,7 @@ func chooseAnswerHandler(w http.ResponseWriter, r *http.Request) {
 func answerChosenHandler(w http.ResponseWriter, r *http.Request) {
 	name := r.FormValue("name")
 	answer := r.FormValue("answer")
-	if players[name] != chosen {
+	if players[name] < chosen {
 		choices[name] = answer
 		players[name] = chosen
 		for _, s := range submissions {
@@ -154,7 +155,7 @@ func answerChosenHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if playersReady(chosen) {
+	if len(getPlayersReady(chosen)) >= numPlayers {
 		url := fmt.Sprintf("/results?name=%s", name)
 		http.Redirect(w, r, url, 307)
 		return
@@ -164,14 +165,14 @@ func answerChosenHandler(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 	}
 	t.Execute(w, struct {
-		Name    string
-		Players map[string]string
-	}{name, players})
+		Name         string
+		PlayersReady []string
+	}{name, getPlayersReady(chosen)})
 }
 
 func resultsHandler(w http.ResponseWriter, r *http.Request) {
 	name := r.FormValue("name")
-	if !playersReady(chosen) {
+	if len(getPlayersReady(chosen)) < numPlayers {
 		url := fmt.Sprintf("/answerChosen?name=%s", name)
 		http.Redirect(w, r, url, 307)
 		return
@@ -205,27 +206,14 @@ func resultsHandler(w http.ResponseWriter, r *http.Request) {
 	}{name, quotes[quoteIndex], c, points})
 }
 
-func playersReady(state string) bool {
-	intRepr := func(s string) int {
-		num := -1
-		switch s {
-		case written:
-			num = 0
-		case chosen:
-			num = 1
-		}
-		return num
-	}
-	total := 0
-	for _, player := range players {
-		if intRepr(player) >= intRepr(state) {
-			total++
+func getPlayersReady(state int) []string {
+	pls := []string{}
+	for name, status := range players {
+		if status >= state {
+			pls = append(pls, name)
 		}
 	}
-	if total < numPlayers {
-		return false
-	}
-	return true
+	return pls
 }
 
 type quote struct {

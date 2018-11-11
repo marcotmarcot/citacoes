@@ -9,8 +9,13 @@
     Sua resposta foi enviada. Quando todos enviarem, clique em
     <a href="results?name={{.Name}}">resultados</a>.
     <br/>
-	{{range $key, $value := .Players}}
-	  <li><strong>{{$key}}</strong> {{$value}}</li>
+	Jogadores preparados:
+	<br>
+	<br>
+	<ol>
+	{{range $name := .PlayersReady}}
+	  <li><strong>{{$name}}</strong></li>
 	{{end}}
+	</ol>
   </body>
 </html>
