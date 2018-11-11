@@ -122,10 +122,6 @@ func chooseAnswerHandler(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, url, 307)
 		return
 	}
-	t, err := template.ParseFiles("chooseAnswer.html")
-	if err != nil {
-		log.Fatal(err)
-	}
 	answers := []string{}
 	seen := map[string]bool{}
 	for _, p := range rand.Perm(len(submissions)) {
@@ -133,7 +129,21 @@ func chooseAnswerHandler(w http.ResponseWriter, r *http.Request) {
 		if seen[a] || a == answer {
 			continue
 		}
+		seen[a] = true
 		answers = append(answers, a)
+	}
+	if len(answers) < 2 {
+		chosen := answer
+		if len(answers) == 1 {
+			chosen = answers[0]
+		}
+		url := fmt.Sprintf("/answerChosen?name=%s&answer=%s", name, chosen)
+		http.Redirect(w, r, url, 307)
+		return
+	}
+	t, err := template.ParseFiles("chooseAnswer.html")
+	if err != nil {
+		log.Fatal(err)
 	}
 	t.Execute(w, struct {
 		Name    string
