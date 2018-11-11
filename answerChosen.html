@@ -9,12 +9,12 @@
     Sua resposta foi enviada. Quando todos enviarem, clique em
     <a href="results?name={{.Name}}">resultados</a>.
     <br/>
-	Jogadores preparados:
+	Faltam <strong>{{$.Missing}}</strong>. Jogadores preparados:
 	<br>
 	<br>
 	<ol>
 	{{range $name := .PlayersReady}}
-	  <li><strong>{{$name}}</strong></li>
+	  <li><strong>{{.}}</strong></li>
 	{{end}}
 	</ol>
   </body>
