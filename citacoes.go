@@ -74,7 +74,7 @@ func writeAnswerHandler(w http.ResponseWriter, r *http.Request) {
 		Name, Quote string
 		NumPlayers  int
 		Players     map[string]string
-	}{name, quotes[quoteIndex].text, numPlayers, players})
+	}{name, quotes[quoteIndex].Text, numPlayers, players})
 }
 
 func answerWrittenHandler(w http.ResponseWriter, r *http.Request) {
@@ -118,10 +118,8 @@ func chooseAnswerHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	quote := quotes[quoteIndex]
-	truth := quote.truth
-	answers := []string{truth}
-	seen := map[string]bool{truth: true}
+	answers := []string{}
+	seen := map[string]bool{}
 	for _, p := range rand.Perm(len(submissions)) {
 		a := submissions[p].Answer
 		if seen[a] || a == answer {
@@ -133,7 +131,7 @@ func chooseAnswerHandler(w http.ResponseWriter, r *http.Request) {
 		Name    string
 		Text    string
 		Answers []string
-	}{name, quotes[quoteIndex].text, answers})
+	}{name, quotes[quoteIndex].Text, answers})
 }
 
 func answerChosenHandler(w http.ResponseWriter, r *http.Request) {
@@ -146,9 +144,6 @@ func answerChosenHandler(w http.ResponseWriter, r *http.Request) {
 	choices[name] = answer
 	if players[name] != chosen {
 		players[name] = chosen
-		if answer == quotes[quoteIndex].truth {
-			points[name]++
-		}
 		for _, s := range submissions {
 			if answer == s.Answer {
 				points[s.Name]++
@@ -182,9 +177,6 @@ func resultsHandler(w http.ResponseWriter, r *http.Request) {
 	c := map[string]authoredAnswer{}
 	for name, answer := range choices {
 		var names []string
-		if answer == quotes[quoteIndex].truth {
-			names = append(names, "CERTA!")
-		}
 		for _, s := range submissions {
 			if s.Answer == answer {
 				names = append(names, s.Name)
@@ -195,9 +187,10 @@ func resultsHandler(w http.ResponseWriter, r *http.Request) {
 
 	t.Execute(w, struct {
 		Name    string
+		Quote   quote
 		Choices map[string]authoredAnswer
 		Points  map[string]int
-	}{name, c, points})
+	}{name, quotes[quoteIndex], c, points})
 }
 
 func playersReady(state string) bool {
@@ -224,7 +217,7 @@ func playersReady(state string) bool {
 }
 
 type quote struct {
-	text, truth string
+	Text, Truth string
 }
 
 type submission struct {
