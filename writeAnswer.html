@@ -7,9 +7,9 @@
   <body>
     <form action="/answerWritten" method="GET">
       {{.Quote}}<br/>
-      Nome: <input type="text" name="name" value="{{.Name}}"/><br/>
-      Palavra: <input type="text" name="answer"/><br/>
-	  Número de jogadores: <input type="number" name="numPlayers" value="{{.NumPlayers}}"><br>
+      Nome: <input type="text" name="name" value="{{.Name}}" pattern="{1,}" required/><br/>
+      Palavra: <input type="text" name="answer" pattern="{1,}" required/><br/>
+	  Número de jogadores: <input type="number" name="numPlayers" value="{{.NumPlayers}}" min="3"/><br/>
 	  Jogadores:
 	  <ul>
 	  {{range $key, $value := .Players}}

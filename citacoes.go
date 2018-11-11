@@ -44,6 +44,8 @@ func main() {
 	}
 	points = make(map[string]int)
 	rand.Seed(time.Now().Unix())
+	quoteIndex = rand.Int() % len(quotes)
+	numPlayers = 3
 	clear()
 	http.HandleFunc("/", writeAnswerHandler)
 	http.HandleFunc("/answerWritten", answerWrittenHandler)
@@ -57,7 +59,7 @@ func clear() {
 	submissions = nil
 	players = make(map[string]string)
 	choices = make(map[string]string)
-	quoteIndex = rand.Int() % len(quotes)
+	quoteIndex++
 }
 
 func writeAnswerHandler(w http.ResponseWriter, r *http.Request) {

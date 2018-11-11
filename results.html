@@ -6,14 +6,14 @@
   </head>
   <body>
     {{.Quote.Text}}<br/>
-    A resposta certa é <strong>{{.Quote.Truth}}</strong>.<br/>
+    A resposta certa é <strong>{{.Quote.Truth}}</strong>.<br/><br/>
     {{range $name, $point := .Points}}
     {{$name}}: {{$point}}<br/>
     {{end}}
     <ul>
       {{range $name, $answer := .Choices}}
       <li>
-        {{$name}} escolheu {{$answer.Answer}}, escrita por:
+        <strong>{{$name}}</strong> escolheu <strong>{{$answer.Answer}}</strong>, escrita por:
         <ul>
           {{range $answer.Authors}}
           <li>
