@@ -14,11 +14,11 @@
     {{$name}}: {{$point}}<br/>
     {{end}}
     <ul>
-      {{range $name, $answer := .Choices}}
+      {{range .Answers}}
       <li>
-        <strong>{{$name}}</strong> escolheu <strong>{{$answer.Answer}}</strong>, escrita por:
+        <strong>{{.Answer}}</strong> ({{.Name}}):
         <ul>
-          {{range $answer.Authors}}
+          {{range .Voters}}
           <li>
             {{.}}
           </li>
