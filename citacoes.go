@@ -1,4 +1,3 @@
-// Bug: Voltar à tela inicial pode reiniciar antes de alguém ver resultados
 package main
 
 import (
