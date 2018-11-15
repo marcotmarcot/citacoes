@@ -10,13 +10,13 @@
   <body>
     {{.Quote.Text}}<br/>
     A resposta certa é <strong>{{.Quote.Truth}}</strong>.<br/><br/>
-    {{range $name, $point := .Points}}
-    {{$name}}: {{$point}}<br/>
+    {{range $player, $point := .Points}}
+    {{$player}}: {{$point}}<br/>
     {{end}}
     <ul>
       {{range .Answers}}
       <li>
-        <strong>{{.Answer}}</strong> ({{.Name}}):
+        <strong>{{.Answer}}</strong> ({{.Player}}):
         <ul>
           {{range .Voters}}
           <li>
@@ -35,6 +35,6 @@
 	  <li><strong>{{.}}</strong></li>
 	{{end}}
 	</ol>
-    <a href="/?name={{.Name}}&clear=1">Jogar de novo</a>
+    <a href="/?player={{.Player}}&clear=1">Jogar de novo</a>
   </body>
 </html>

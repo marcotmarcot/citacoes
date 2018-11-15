@@ -13,23 +13,154 @@ import (
 	"time"
 )
 
-const (
-	answered int = iota + 1
-	chosen
-	resulted
-)
-
 var (
-	quotes      []quote
-	quoteIndex  int
-	submissions []submission
-	points      map[string]int
-	players     map[string]int
-	voters     map[string][]string
-	numPlayers  int
+	g *game
 )
 
 func main() {
+	rand.Seed(time.Now().Unix())
+	g = newGame()
+	http.HandleFunc("/", writeAnswerHandler)
+	http.HandleFunc("/answerWritten", answerWrittenHandler)
+	http.HandleFunc("/chooseAnswer", chooseAnswerHandler)
+	http.HandleFunc("/answerChosen", answerChosenHandler)
+	http.HandleFunc("/results", resultsHandler)
+	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
+func writeAnswerHandler(w http.ResponseWriter, r *http.Request) {
+	player := r.FormValue("player")
+	clear := r.FormValue("clear") == "1"
+
+	if g.newRound(player, clear) {
+		url := fmt.Sprintf("/results?player=%s", player)
+		http.Redirect(w, r, url, 307)
+		return
+	}
+
+	t, err := template.ParseFiles("writeAnswer.html")
+	if err != nil {
+		log.Fatal(err)
+	}
+	t.Execute(w, struct {
+		Player, Quote string
+		NumPlayers    int
+		Players       []string
+	}{player, g.currentQuote().Text, g.numPlayers, g.playersReady(0)})
+}
+
+func answerWrittenHandler(w http.ResponseWriter, r *http.Request) {
+	player := r.FormValue("player")
+	answer := strings.ToLower(r.FormValue("answer"))
+	numPlayers := parseInt(r.FormValue("numPlayers"), 3)
+
+	g.numPlayers = numPlayers
+	if g.newAnswer(player, answer) {
+		url := fmt.Sprintf("/chooseAnswer?player=%s&answer=", player, answer)
+		http.Redirect(w, r, url, 307)
+		return
+	}
+	ready := g.playersReady(answeredStatus)
+
+	t, err := template.ParseFiles("answerWritten.html")
+	if err != nil {
+		log.Fatal(err)
+	}
+	t.Execute(w, struct {
+		Player       string
+		Missing      int
+		PlayersReady []string
+		Answer       string
+	}{player, g.numPlayers - len(ready), ready, answer})
+}
+
+func chooseAnswerHandler(w http.ResponseWriter, r *http.Request) {
+	player := r.FormValue("player")
+	answer := r.FormValue("answer")
+
+	if g.gameStatus() < answeredStatus {
+		url := fmt.Sprintf("/answerWritten?player=%s", player)
+		http.Redirect(w, r, url, 307)
+		return
+	}
+
+	if choice, noChoice := g.noChoice(player, answer); noChoice {
+		url := fmt.Sprintf("/answerChosen?player=%s&choice=%s", player, choice)
+		http.Redirect(w, r, url, 307)
+		return
+	}
+
+	t, err := template.ParseFiles("chooseAnswer.html")
+	if err != nil {
+		log.Fatal(err)
+	}
+	t.Execute(w, struct {
+		Player  string
+		Text    string
+		Choices []string
+	}{player, g.currentQuote().Text, g.choices(player, answer)})
+}
+
+func answerChosenHandler(w http.ResponseWriter, r *http.Request) {
+	player := r.FormValue("player")
+	choice := r.FormValue("choice")
+
+	if g.answerChosen(player, choice) {
+		url := fmt.Sprintf("/results?player=%s", player)
+		http.Redirect(w, r, url, 307)
+		return
+	}
+	ready := g.playersReady(chosenStatus)
+
+	t, err := template.ParseFiles("answerChosen.html")
+	if err != nil {
+		log.Fatal(err)
+	}
+	t.Execute(w, struct {
+		Player       string
+		Missing      int
+		PlayersReady []string
+	}{player, g.numPlayers - len(ready), ready})
+}
+
+func resultsHandler(w http.ResponseWriter, r *http.Request) {
+	player := r.FormValue("player")
+
+	if g.gameStatus() < chosenStatus {
+		url := fmt.Sprintf("/answerChosen?player=%s", player)
+		http.Redirect(w, r, url, 307)
+		return
+	}
+
+	votedAnswers := g.votedAnswers(player)
+	ready := g.playersReady(seenResultStatus)
+
+	t, err := template.ParseFiles("results.html")
+	if err != nil {
+		log.Fatal(err)
+	}
+	t.Execute(w, struct {
+		Player       string
+		Quote        quote
+		Answers      []votedAnswer
+		Points       map[string]int
+		Missing      int
+		PlayersReady []string
+	}{player, g.currentQuote(), votedAnswers, g.points, g.numPlayers - len(ready), ready})
+}
+
+type game struct {
+	quotes       []quote
+	quoteIndex   int
+	points       map[string]int
+	submissions  []submission
+	playerStatus map[string]status
+	voters       map[string][]string
+	numPlayers   int
+}
+
+func newGame() *game {
+	g := &game{}
 	quotesFile, err := os.Open("citacoes.csv")
 	if err != nil {
 		log.Fatal(err)
@@ -39,198 +170,130 @@ func main() {
 		log.Fatal(err)
 	}
 	for _, q := range quotesFields {
-		quotes = append(quotes, quote{q[0], q[1]})
+		g.quotes = append(g.quotes, quote{q[0], q[1]})
 	}
-	points = make(map[string]int)
-	rand.Seed(time.Now().Unix())
-	quotes = Shuffle(quotes)
-	quoteIndex = 0
-	numPlayers = 3
-	clear()
-	http.HandleFunc("/", writeAnswerHandler)
-	http.HandleFunc("/answerWritten", answerWrittenHandler)
-	http.HandleFunc("/chooseAnswer", chooseAnswerHandler)
-	http.HandleFunc("/answerChosen", answerChosenHandler)
-	http.HandleFunc("/results", resultsHandler)
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	g.quotes = Shuffle(g.quotes)
+	g.points = make(map[string]int)
+	g.quoteIndex = 0
+	g.numPlayers = 3
+	g.restart()
+	return g
 }
 
-func clear() {
-	submissions = nil
-	players = make(map[string]int)
-	voters = make(map[string][]string)
-	quoteIndex++
+// Returns if the round is ready to start.
+func (g *game) newRound(player string, clear bool) bool {
+	_, ok := g.playerStatus[player]
+	if clear && ok {
+		g.restart()
+	}
+	if g.gameStatus() < seenResultStatus {
+		return false
+	}
+	return true
 }
 
-func writeAnswerHandler(w http.ResponseWriter, r *http.Request) {
-	t, err := template.ParseFiles("writeAnswer.html")
-	if err != nil {
-		log.Fatal(err)
+// Returns if all the answers were already collected.
+func (g *game) newAnswer(player, answer string) bool {
+	// Register new player.
+	if _, ok := g.points[player]; !ok {
+		g.points[player] = 0
 	}
-	name := r.FormValue("name")
-	_, ok := players[name]
-	if r.FormValue("clear") == "1" && ok {
-		if len(getPlayersReady(resulted)) < numPlayers {
-			url := fmt.Sprintf("/results?name=%s", name)
-			http.Redirect(w, r, url, 307)
-			return
-		}
-		clear()
+	// Register submission if this player has not yet registered their
+	// submission.
+	if g.playerStatus[player] < answeredStatus {
+		g.playerStatus[player] = answeredStatus
+		g.submissions = append(g.submissions, submission{player, answer})
 	}
-	t.Execute(w, struct {
-		Name, Quote string
-		NumPlayers  int
-		Players     []string
-	}{name, quotes[quoteIndex].Text, numPlayers, getPlayersReady(0)})
+	return g.gameStatus() >= answeredStatus
 }
 
-func answerWrittenHandler(w http.ResponseWriter, r *http.Request) {
-	name := r.FormValue("name")
-	if _, ok := points[name]; !ok {
-		points[name] = 0
+// Returns the only option this player has if they have only one option.
+func (g *game) noChoice(player, answer string) (string, bool) {
+	choices := g.choices(player, answer)
+	if len(choices) == 1 {
+		return choices[0], true
 	}
-	answer := strings.ToLower(r.FormValue("answer"))
-	if r.FormValue("numPlayers") != "" {
-		tmpNum, err := strconv.Atoi(r.FormValue("numPlayers"))
-		if err != nil {
-			log.Printf("%s cometeu um vacilo %s", name, err.Error())
-		} else {
-			numPlayers = tmpNum
-		}
-	}
-	if players[name] < answered {
-		players[name] = answered
-		submissions = append(submissions, submission{name, answer})
-	}
-	ready := getPlayersReady(answered)
-	if len(ready) >= numPlayers {
-		url := fmt.Sprintf("/chooseAnswer?name=%s&answer=%s", name, answer)
-		http.Redirect(w, r, url, 307)
-		return
-	}
-	t, err := template.ParseFiles("answerWritten.html")
-	if err != nil {
-		log.Fatal(err)
-	}
-	t.Execute(w, struct {
-		Name         string
-		Missing      int
-		PlayersReady []string
-		Answer       string
-	}{name, numPlayers - len(ready), ready, answer})
+	return "", len(choices) == 0
 }
 
-func chooseAnswerHandler(w http.ResponseWriter, r *http.Request) {
-	name := r.FormValue("name")
-	answer := r.FormValue("answer")
-	if len(getPlayersReady(answered)) < numPlayers {
-		url := fmt.Sprintf("/answerWritten?name=%s&answer=%s", name, answer)
-		http.Redirect(w, r, url, 307)
-		return
-	}
+// Returns the options that this player has.
+func (g *game) choices(player, answer string) []string {
 	answers := []string{}
 	seen := map[string]bool{}
-	for _, p := range rand.Perm(len(submissions)) {
-		a := submissions[p].Answer
+	for _, p := range rand.Perm(len(g.submissions)) {
+		if g.submissions[p].Player == player {
+			continue
+		}
+		a := g.submissions[p].Answer
 		if seen[a] || a == answer {
 			continue
 		}
 		seen[a] = true
 		answers = append(answers, a)
 	}
-	if len(answers) < 2 {
-		chosen := answer
-		if len(answers) == 1 {
-			chosen = answers[0]
-		}
-		url := fmt.Sprintf("/answerChosen?name=%s&answer=%s", name, chosen)
-		http.Redirect(w, r, url, 307)
-		return
-	}
-	t, err := template.ParseFiles("chooseAnswer.html")
-	if err != nil {
-		log.Fatal(err)
-	}
-	t.Execute(w, struct {
-		Name    string
-		Text    string
-		Answers []string
-	}{name, quotes[quoteIndex].Text, answers})
+	return answers
 }
 
-func answerChosenHandler(w http.ResponseWriter, r *http.Request) {
-	name := r.FormValue("name")
-	answer := r.FormValue("answer")
-	if players[name] < chosen {
-		voters[answer] = append(voters[answer], name)
-		players[name] = chosen
-		for _, s := range submissions {
-			if answer == s.Answer {
-				points[s.Name]++
+// Returns if all the answers were already chosen.
+func (g *game) answerChosen(player, choice string) bool {
+	if g.playerStatus[player] < chosenStatus {
+		g.playerStatus[player] = chosenStatus
+		g.voters[choice] = append(g.voters[choice], player)
+		for _, s := range g.submissions {
+			if choice == s.Answer {
+				g.points[s.Player]++
 			}
 		}
 	}
 
-	ready := getPlayersReady(chosen)
-	if len(ready) >= numPlayers {
-		url := fmt.Sprintf("/results?name=%s", name)
-		http.Redirect(w, r, url, 307)
-		return
-	}
-	t, err := template.ParseFiles("answerChosen.html")
-	if err != nil {
-		log.Fatal(err)
-	}
-	t.Execute(w, struct {
-		Name         string
-		Missing      int
-		PlayersReady []string
-	}{name, numPlayers - len(ready), ready})
+	return g.gameStatus() >= chosenStatus
 }
 
-func resultsHandler(w http.ResponseWriter, r *http.Request) {
-	name := r.FormValue("name")
-	if len(getPlayersReady(chosen)) < numPlayers {
-		url := fmt.Sprintf("/answerChosen?name=%s", name)
-		http.Redirect(w, r, url, 307)
-		return
-	}
-	t, err := template.ParseFiles("results.html")
-	if err != nil {
-		log.Fatal(err)
-	}
+// Returns the answers with their votes and update the status of the player.
+func (g *game) votedAnswers(player string) []votedAnswer {
+	g.playerStatus[player] = seenResultStatus
 
-	players[name] = resulted
-
-	type votedAnswer struct {
-		Name string
-		Answer  string
-		Voters []string
-	}
 	var answers []votedAnswer
-	for _, s := range submissions {
-		answers = append(answers, votedAnswer{s.Name, s.Answer, voters[s.Answer]})
+	for _, s := range g.submissions {
+		answers = append(answers, votedAnswer{s.Player, s.Answer, g.voters[s.Answer]})
 	}
-
-	ready := getPlayersReady(resulted)
-	t.Execute(w, struct {
-		Name         string
-		Quote        quote
-		Answers      []votedAnswer
-		Points       map[string]int
-		Missing      int
-		PlayersReady []string
-	}{name, quotes[quoteIndex], answers, points, numPlayers - len(ready), ready})
+	return answers
 }
 
-func getPlayersReady(state int) []string {
-	pls := []string{}
-	for name, status := range players {
-		if status >= state {
-			pls = append(pls, name)
+func (g *game) restart() {
+	g.submissions = nil
+	g.playerStatus = make(map[string]status)
+	g.voters = make(map[string][]string)
+	g.quoteIndex++
+}
+
+func (g *game) currentQuote() quote {
+	return g.quotes[g.quoteIndex]
+}
+
+func (g *game) playersReady(s status) []string {
+	players := []string{}
+	for player, playerStatus := range g.playerStatus {
+		if playerStatus >= s {
+			players = append(players, player)
 		}
 	}
-	return pls
+	return players
+}
+
+// Returns the status of the game, which is the status of the player in the
+// earliest status.
+func (g *game) gameStatus() status {
+	if len(g.playerStatus) < g.numPlayers {
+		return notAnsweredStatus
+	}
+	s := seenResultStatus
+	for _, playerStatus := range g.playerStatus {
+		if playerStatus < s {
+			s = playerStatus
+		}
+	}
+	return s
 }
 
 type quote struct {
@@ -238,7 +301,22 @@ type quote struct {
 }
 
 type submission struct {
-	Name, Answer string
+	Player, Answer string
+}
+
+type status int
+
+const (
+	notAnsweredStatus status = iota
+	answeredStatus
+	chosenStatus
+	seenResultStatus
+)
+
+type votedAnswer struct {
+	Player string
+	Answer string
+	Voters []string
 }
 
 func Shuffle(vals []quote) []quote {
@@ -247,4 +325,13 @@ func Shuffle(vals []quote) []quote {
 		ret[i] = vals[randIndex]
 	}
 	return ret
+}
+
+func parseInt(s string, def int) int {
+	if i, err := strconv.Atoi(s); err != nil {
+		log.Printf("Could not parse int %v: %v", s, err)
+		return 3
+	} else {
+		return i
+	}
 }
