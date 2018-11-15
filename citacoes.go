@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/csv"
+	"flag"
 	"fmt"
 	"html/template"
 	"log"
@@ -14,10 +15,12 @@ import (
 )
 
 var (
-	g *game
+	g  *game
+	ip = flag.Int("port", 8080, "port to run the game")
 )
 
 func main() {
+	flag.Parse()
 	rand.Seed(time.Now().Unix())
 	g = newGame()
 	http.HandleFunc("/", writeAnswerHandler)
@@ -25,7 +28,7 @@ func main() {
 	http.HandleFunc("/chooseAnswer", chooseAnswerHandler)
 	http.HandleFunc("/answerChosen", answerChosenHandler)
 	http.HandleFunc("/results", resultsHandler)
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(http.ListenAndServe(":"+strconv.Itoa(*ip), nil))
 }
 
 func writeAnswerHandler(w http.ResponseWriter, r *http.Request) {
