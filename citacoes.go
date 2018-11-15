@@ -59,7 +59,7 @@ func answerWrittenHandler(w http.ResponseWriter, r *http.Request) {
 
 	g.numPlayers = numPlayers
 	if g.newAnswer(player, answer) {
-		url := fmt.Sprintf("/chooseAnswer?player=%s&answer=", player, answer)
+		url := fmt.Sprintf("/chooseAnswer?player=%s&answer=%s", player, answer)
 		http.Redirect(w, r, url, 307)
 		return
 	}
