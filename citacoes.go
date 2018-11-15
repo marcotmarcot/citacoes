@@ -82,7 +82,7 @@ func chooseAnswerHandler(w http.ResponseWriter, r *http.Request) {
 	answer := r.FormValue("answer")
 
 	if g.gameStatus() < answeredStatus {
-		url := fmt.Sprintf("/answerWritten?player=%s", player)
+		url := fmt.Sprintf("/answerWritten?player=%s&answer=", player, answer)
 		http.Redirect(w, r, url, 307)
 		return
 	}
