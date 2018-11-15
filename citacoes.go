@@ -242,14 +242,14 @@ func (g *game) answerChosen(player, choice string) bool {
 	if g.playerStatus[player] < chosenStatus {
 		g.playerStatus[player] = chosenStatus
 		g.voters[choice] = append(g.voters[choice], player)
-		if choice == g.currentQuote().Answer {
+		if choice == g.currentQuote().Truth {
 			g.points[player]++
 		}
 		for _, s := range g.submissions {
 			if choice == s.Answer {
 				g.points[s.Player]++
 			}
-			if s.Player == player && s.Answer == g.currentQuote().Answer {
+			if s.Player == player && s.Answer == g.currentQuote().Truth {
 				g.points[player]++
 			}
 		}
