@@ -221,8 +221,8 @@ func (g *game) noChoice(player, answer string) (string, bool) {
 
 // Returns the options that this player has.
 func (g *game) choices(player, answer string) []string {
-	answers := []string{}
-	seen := map[string]bool{}
+	answers := []string{g.currentQuote().Truth}
+	seen := map[string]bool{g.currentQuote().Truth: true}
 	for _, p := range rand.Perm(len(g.submissions)) {
 		if g.submissions[p].Player == player {
 			continue
