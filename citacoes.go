@@ -49,7 +49,7 @@ func writeAnswerHandler(w http.ResponseWriter, r *http.Request) {
 		Player, Quote string
 		NumPlayers    int
 		Players       []string
-	}{player, g.currentQuote().Text, g.numPlayers, g.playersReady(0)})
+	}{player, g.currentText(), g.numPlayers, g.playersReady(0)})
 }
 
 func answerWrittenHandler(w http.ResponseWriter, r *http.Request) {
@@ -101,7 +101,7 @@ func chooseAnswerHandler(w http.ResponseWriter, r *http.Request) {
 		Player  string
 		Text    string
 		Choices []string
-	}{player, g.currentQuote().Text, g.choices(player, answer)})
+	}{player, g.currentText(), g.choices(player, answer)})
 }
 
 func answerChosenHandler(w http.ResponseWriter, r *http.Request) {
@@ -221,8 +221,12 @@ func (g *game) noChoice(player, answer string) (string, bool) {
 
 // Returns the options that this player has.
 func (g *game) choices(player, answer string) []string {
-	answers := []string{g.currentQuote().Truth}
-	seen := map[string]bool{g.currentQuote().Truth: true}
+	answers := []string{}
+	seen := map[string]bool{}
+	if g.currentTruth() != answer {
+		answers = append(answers, g.currentTruth())
+		seen[g.currentTruth()] = true
+	}
 	for _, p := range rand.Perm(len(g.submissions)) {
 		if g.submissions[p].Player == player {
 			continue
@@ -242,14 +246,14 @@ func (g *game) answerChosen(player, choice string) bool {
 	if g.playerStatus[player] < chosenStatus {
 		g.playerStatus[player] = chosenStatus
 		g.voters[choice] = append(g.voters[choice], player)
-		if choice == g.currentQuote().Truth {
+		if choice == g.currentTruth() {
 			g.points[player]++
 		}
 		for _, s := range g.submissions {
 			if choice == s.Answer {
 				g.points[s.Player]++
 			}
-			if s.Player == player && s.Answer == g.currentQuote().Truth {
+			if s.Player == player && s.Answer == g.currentTruth() {
 				g.points[player]++
 			}
 		}
@@ -278,6 +282,14 @@ func (g *game) restart() {
 
 func (g *game) currentQuote() quote {
 	return g.quotes[g.quoteIndex]
+}
+
+func (g *game) currentText() string {
+	return g.currentQuote().Text
+}
+
+func (g *game) currentTruth() string {
+	return g.currentQuote().Truth
 }
 
 func (g *game) playersReady(s status) []string {
