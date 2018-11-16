@@ -173,7 +173,7 @@ func newGame() *game {
 		log.Fatal(err)
 	}
 	for _, q := range quotesFields {
-		g.quotes = append(g.quotes, quote{q[0], q[1]})
+		g.quotes = append(g.quotes, quote{q[0], strings.ToLower(q[1])})
 	}
 	g.quotes = shuffleQuotes(g.quotes)
 	g.points = make(map[string]int)
