@@ -175,7 +175,7 @@ func newGame() *game {
 	for _, q := range quotesFields {
 		g.quotes = append(g.quotes, quote{q[0], q[1]})
 	}
-	g.quotes = Shuffle(g.quotes)
+	g.quotes = shuffleQuotes(g.quotes)
 	g.points = make(map[string]int)
 	g.quoteIndex = 0
 	g.numPlayers = 3
@@ -227,18 +227,18 @@ func (g *game) choices(player, answer string) []string {
 		answers = append(answers, g.currentTruth())
 		seen[g.currentTruth()] = true
 	}
-	for _, p := range rand.Perm(len(g.submissions)) {
-		if g.submissions[p].Player == player {
+	for _, s := range g.submissions {
+		if s.Player == player {
 			continue
 		}
-		a := g.submissions[p].Answer
+		a := s.Answer
 		if seen[a] || a == answer {
 			continue
 		}
 		seen[a] = true
 		answers = append(answers, a)
 	}
-	return answers
+	return shuffleStrings(answers)
 }
 
 // Returns if all the answers were already chosen.
@@ -340,8 +340,16 @@ type votedAnswer struct {
 	Voters []string
 }
 
-func Shuffle(vals []quote) []quote {
+func shuffleQuotes(vals []quote) []quote {
 	ret := make([]quote, len(vals))
+	for i, randIndex := range rand.Perm(len(vals)) {
+		ret[i] = vals[randIndex]
+	}
+	return ret
+}
+
+func shuffleStrings(vals []string) []string {
+	ret := make([]string, len(vals))
 	for i, randIndex := range rand.Perm(len(vals)) {
 		ret[i] = vals[randIndex]
 	}
