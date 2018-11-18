@@ -64,14 +64,14 @@ func (g *GameImpl) NumPlayers() int {
 
 // Returns if the round is ready to start.
 func (g *GameImpl) NewRound(player string, clear bool) bool {
-	if player != "" {
-		g.lastSeen[player] = time.Now()
-	}
 	if clear && g.Round.IsPlaying(player) {
+		if len(g.Round.PlayersReady(round.SeenResultStatus)) < g.NumPlayers() {
+			return false
+		}
 		g.Round = round.NewRound(g)
 	}
-	if g.Round.Status() < round.SeenResultStatus {
-		return false
+	if player != "" {
+		g.lastSeen[player] = time.Now()
 	}
 	return true
 }

@@ -8,7 +8,7 @@
     {{.Quote}}<br/>
     <form action="/answerWritten" method="GET">
       <input type="hidden" name="player" value="{{.Player}}" />
-      Resposta: <input type="text" name="answer" pattern="{1,}" required autocomplete="off"/>
+      Resposta: <input type="text" name="answer" pattern="{1,}" required autocomplete="off" autofocus/>
       <input type="submit" value="Enviar"/><br/>
     </form>
 	  Jogadores que já responderam:
