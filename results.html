@@ -8,6 +8,7 @@
     {{end}}
   </head>
   <body>
+    <a href="/?player={{.Player}}&clear=1">Jogar de novo</a><br/><br/>
     {{.Quote.Text}}<br/>
     A resposta certa é <strong>{{.Quote.Truth}}</strong>.<br/><br/>
     {{range $player, $point := .Points}}
@@ -35,6 +36,5 @@
 	  <li><strong>{{.}}</strong></li>
 	{{end}}
 	</ol>
-    <a href="/?player={{.Player}}&clear=1">Jogar de novo</a>
   </body>
 </html>

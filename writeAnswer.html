@@ -9,7 +9,7 @@
       {{.Quote}}<br/>
       Nome: <input type="text" name="player" value="{{.Player}}" pattern="{1,}" required/><br/>
       Resposta: <input type="text" name="answer" pattern="{1,}" required autocomplete="off"/><br/>
-	  Jogadores:
+	  Jogadores que já responderam:
 	  <ul>
 	  {{range $player := .Players}}
 	    <li><strong>{{$player}}</strong></li>
