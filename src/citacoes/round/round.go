@@ -3,6 +3,7 @@ package round
 import (
 	"citacoes/game"
 	"math/rand"
+	"sort"
 )
 
 type Round struct {
@@ -35,6 +36,7 @@ func (r *Round) PlayersReady(status Status) []string {
 			players = append(players, player)
 		}
 	}
+	sort.Strings(players)
 	return players
 }
 
