@@ -24,7 +24,8 @@ func main() {
 	flag.Parse()
 	rand.Seed(time.Now().Unix())
 	g = gameimpl.NewGame()
-	http.HandleFunc("/", writeAnswerHandler)
+	http.HandleFunc("/", checkInHandler)
+	http.HandleFunc("/writeAnswer", writeAnswerHandler)
 	http.HandleFunc("/answerWritten", answerWrittenHandler)
 	http.HandleFunc("/chooseAnswer", chooseAnswerHandler)
 	http.HandleFunc("/answerChosen", answerChosenHandler)
@@ -32,11 +33,19 @@ func main() {
 	log.Fatal(http.ListenAndServe(":"+strconv.Itoa(*ip), nil))
 }
 
+func checkInHandler(w http.ResponseWriter, r *http.Request) {
+	t, err := template.ParseFiles("checkIn.html")
+	if err != nil {
+		log.Fatal(err)
+	}
+	t.Execute(w, nil)
+}
+
 func writeAnswerHandler(w http.ResponseWriter, r *http.Request) {
 	player := r.FormValue("player")
 	clear := r.FormValue("clear") == "1"
 
-	if g.NewRound(player, clear) {
+	if !g.NewRound(player, clear) {
 		url := fmt.Sprintf("/results?player=%s", player)
 		http.Redirect(w, r, url, 307)
 		return
@@ -79,7 +88,7 @@ func chooseAnswerHandler(w http.ResponseWriter, r *http.Request) {
 	player := r.FormValue("player")
 	answer := r.FormValue("answer")
 
-	if g.Round.Status() < round.AnsweredStatus {
+	if len(g.Round.PlayersReady(round.AnsweredStatus)) < g.NumPlayers() {
 		url := fmt.Sprintf("/answerWritten?player=%s&answer=", player, answer)
 		http.Redirect(w, r, url, 307)
 		return
@@ -127,7 +136,7 @@ func answerChosenHandler(w http.ResponseWriter, r *http.Request) {
 func resultsHandler(w http.ResponseWriter, r *http.Request) {
 	player := r.FormValue("player")
 
-	if g.Round.Status() < round.ChosenStatus {
+	if len(g.Round.PlayersReady(round.ChosenStatus)) < g.NumPlayers() {
 		url := fmt.Sprintf("/answerChosen?player=%s", player)
 		http.Redirect(w, r, url, 307)
 		return
@@ -143,18 +152,10 @@ func resultsHandler(w http.ResponseWriter, r *http.Request) {
 	t.Execute(w, struct {
 		Player       string
 		Quote        game.Quote
+		TruthVoters  []string
 		Answers      []round.VotedAnswer
-		Points       map[string]int
+		Points       []gameimpl.RankedPlayer
 		Missing      int
 		PlayersReady []string
-	}{player, g.Quote(), votedAnswers, g.Points, g.NumPlayers() - len(ready), ready})
-}
-
-func parseInt(s string, def int) int {
-	if i, err := strconv.Atoi(s); err != nil {
-		log.Printf("Could not parse int %v: %v", s, err)
-		return 3
-	} else {
-		return i
-	}
+	}{player, g.Quote(), g.Round.TruthVoters(), votedAnswers, g.Points(), g.NumPlayers() - len(ready), ready})
 }

@@ -7,13 +7,14 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"sort"
 	"strings"
 	"time"
 )
 
 type GameImpl struct {
 	Round      *round.Round
-	Points     map[string]int
+	points     map[string]int
 	quotes     []game.Quote
 	quoteIndex int
 	lastSeen   map[string]time.Time
@@ -33,7 +34,7 @@ func NewGame() *GameImpl {
 		g.quotes = append(g.quotes, game.Quote{q[0], strings.ToLower(q[1])})
 	}
 	g.quotes = shuffleQuotes(g.quotes)
-	g.Points = map[string]int{}
+	g.points = map[string]int{}
 	g.quoteIndex = 0
 	g.lastSeen = map[string]time.Time{}
 	g.Round = round.NewRound(g)
@@ -63,14 +64,14 @@ func (g *GameImpl) NumPlayers() int {
 
 // Returns if the round is ready to start.
 func (g *GameImpl) NewRound(player string, clear bool) bool {
-	if player != "" {
-		g.lastSeen[player] = time.Now()
-	}
 	if clear && g.Round.IsPlaying(player) {
+		if len(g.Round.PlayersReady(round.SeenResultStatus)) < g.NumPlayers() {
+			return false
+		}
 		g.Round = round.NewRound(g)
 	}
-	if g.Round.Status() < round.SeenResultStatus {
-		return false
+	if player != "" {
+		g.lastSeen[player] = time.Now()
 	}
 	return true
 }
@@ -80,8 +81,8 @@ func (g *GameImpl) NewAnswer(player, answer string) bool {
 	g.lastSeen[player] = time.Now()
 	// Register new player. This is important so that all the players are shown
 	// on the results, even those that don't have any points.
-	if _, ok := g.Points[player]; !ok {
-		g.Points[player] = 0
+	if _, ok := g.points[player]; !ok {
+		g.points[player] = 0
 	}
 	return g.Round.NewAnswer(player, answer)
 }
@@ -91,9 +92,37 @@ func (g *GameImpl) AnswerChosen(player, choice string) bool {
 	g.lastSeen[player] = time.Now()
 	pointed, complete := g.Round.AnswerChosen(player, choice)
 	for _, player := range pointed {
-		g.Points[player]++
+		g.points[player]++
 	}
 	return complete
+}
+
+func (g *GameImpl) Points() []RankedPlayer {
+	r := []RankedPlayer{}
+	for player, points := range g.points {
+		r = append(r, RankedPlayer{player, points})
+	}
+	sort.Sort(byPoints(r))
+	return r
+}
+
+type RankedPlayer struct {
+	Player string
+	Points int
+}
+
+type byPoints []RankedPlayer
+
+func (b byPoints) Len() int {
+	return len(b)
+}
+
+func (b byPoints) Swap(i, j int) {
+	b[i], b[j] = b[j], b[i]
+}
+
+func (b byPoints) Less(i, j int) bool {
+	return b[i].Points > b[j].Points
 }
 
 func shuffleQuotes(vals []game.Quote) []game.Quote {

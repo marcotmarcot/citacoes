@@ -8,13 +8,19 @@
     {{end}}
   </head>
   <body>
-    <a href="/?player={{.Player}}&clear=1">Nova rodada</a><br/><br/>
+    <a href="/writeAnswer?player={{.Player}}&clear=1">Nova rodada</a><br/><br/>
     {{.Quote.Text}}<br/>
-    A resposta certa é <strong>{{.Quote.Truth}}</strong>.<br/><br/>
-    {{range $player, $point := .Points}}
-    {{$player}}: {{$point}}<br/>
-    {{end}}
     <ul>
+      <li>
+        <strong>{{.Quote.Truth}}</strong> (resposta certa):
+        <ul>
+          {{range .TruthVoters}}
+          <li>
+            {{.}}
+          </li>
+          {{end}}
+        </ul>
+      </li>
       {{range .Answers}}
       <li>
         <strong>{{.Answer}}</strong> ({{.Player}}):
@@ -28,9 +34,13 @@
       </li>
       {{end}}
     </ul>
+    Placar:
+    <ul>
+      {{range .Points}}
+      <li>{{.Player}}: {{.Points}}</li>
+      {{end}}
+    </ul>
 	Jogadores preparados:
-	<br>
-	<br>
 	<ol>
 	{{range .PlayersReady}}
 	  <li><strong>{{.}}</strong></li>
