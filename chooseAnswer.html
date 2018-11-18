@@ -6,8 +6,8 @@
   </head>
   <body>
     {{.Text}}<br/>
-    {{ range .Answers }}
-    <a href="answerChosen?name={{$.Name}}&answer={{.}}">{{.}}</a><br/>
+    {{ range .Choices }}
+    <a href="answerChosen?player={{$.Player}}&choice={{.}}">{{.}}</a><br/>
     {{ end }}
     <br/>
   </body>

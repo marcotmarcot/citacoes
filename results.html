@@ -8,17 +8,18 @@
     {{end}}
   </head>
   <body>
+    <a href="/?player={{.Player}}&clear=1">Nova rodada</a><br/><br/>
     {{.Quote.Text}}<br/>
     A resposta certa é <strong>{{.Quote.Truth}}</strong>.<br/><br/>
-    {{range $name, $point := .Points}}
-    {{$name}}: {{$point}}<br/>
+    {{range $player, $point := .Points}}
+    {{$player}}: {{$point}}<br/>
     {{end}}
     <ul>
-      {{range $name, $answer := .Choices}}
+      {{range .Answers}}
       <li>
-        <strong>{{$name}}</strong> escolheu <strong>{{$answer.Answer}}</strong>, escrita por:
+        <strong>{{.Answer}}</strong> ({{.Player}}):
         <ul>
-          {{range $answer.Authors}}
+          {{range .Voters}}
           <li>
             {{.}}
           </li>
@@ -35,6 +36,5 @@
 	  <li><strong>{{.}}</strong></li>
 	{{end}}
 	</ol>
-    <a href="/?name={{.Name}}&clear=1">Jogar de novo</a>
   </body>
 </html>
