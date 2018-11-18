@@ -5,17 +5,17 @@
     <title>Escreva sua resposta</title>
   </head>
   <body>
+    {{.Quote}}<br/>
     <form action="/answerWritten" method="GET">
-      {{.Quote}}<br/>
-      Nome: <input type="text" name="player" value="{{.Player}}" pattern="{1,}" required/><br/>
-      Resposta: <input type="text" name="answer" pattern="{1,}" required autocomplete="off"/><br/>
+      <input type="hidden" name="player" value="{{.Player}}" />
+      Resposta: <input type="text" name="answer" pattern="{1,}" required autocomplete="off"/>
+      <input type="submit" value="Enviar"/><br/>
+    </form>
 	  Jogadores que já responderam:
 	  <ul>
 	  {{range $player := .Players}}
 	    <li><strong>{{$player}}</strong></li>
 	  {{end}}
       </ul>
-      <input type="submit" value="Enviar"/><br/>
-    </form>
   </body>
 </html>

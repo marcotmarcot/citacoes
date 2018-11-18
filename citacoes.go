@@ -24,12 +24,21 @@ func main() {
 	flag.Parse()
 	rand.Seed(time.Now().Unix())
 	g = gameimpl.NewGame()
-	http.HandleFunc("/", writeAnswerHandler)
+	http.HandleFunc("/", checkInHandler)
+	http.HandleFunc("/writeAnswer", writeAnswerHandler)
 	http.HandleFunc("/answerWritten", answerWrittenHandler)
 	http.HandleFunc("/chooseAnswer", chooseAnswerHandler)
 	http.HandleFunc("/answerChosen", answerChosenHandler)
 	http.HandleFunc("/results", resultsHandler)
 	log.Fatal(http.ListenAndServe(":"+strconv.Itoa(*ip), nil))
+}
+
+func checkInHandler(w http.ResponseWriter, r *http.Request) {
+	t, err := template.ParseFiles("checkIn.html")
+	if err != nil {
+		log.Fatal(err)
+	}
+	t.Execute(w, nil)
 }
 
 func writeAnswerHandler(w http.ResponseWriter, r *http.Request) {
