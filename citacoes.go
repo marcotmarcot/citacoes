@@ -48,17 +48,14 @@ func writeAnswerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	t.Execute(w, struct {
 		Player, Quote string
-		NumPlayers    int
 		Players       []string
-	}{player, g.Quote().Text, g.NumPlayers(), g.Round.PlayersReady(round.NotAnsweredStatus)})
+	}{player, g.Quote().Text, g.Round.PlayersReady(round.NotAnsweredStatus)})
 }
 
 func answerWrittenHandler(w http.ResponseWriter, r *http.Request) {
 	player := r.FormValue("player")
 	answer := strings.ToLower(r.FormValue("answer"))
-	numPlayers := parseInt(r.FormValue("numPlayers"), 3)
 
-	g.SetNumPlayers(numPlayers)
 	if g.NewAnswer(player, answer) {
 		url := fmt.Sprintf("/chooseAnswer?player=%s&answer=%s", player, answer)
 		http.Redirect(w, r, url, 307)

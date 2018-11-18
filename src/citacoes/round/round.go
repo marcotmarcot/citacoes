@@ -18,8 +18,8 @@ func NewRound(g game.Game) *Round {
 	r.g = g
 	r.g.NextQuote()
 	r.submissions = nil
-	r.playerStatus = make(map[string]Status)
-	r.voters = make(map[string][]string)
+	r.playerStatus = map[string]Status{}
+	r.voters = map[string][]string{}
 	return r
 }
 

@@ -9,7 +9,6 @@
       {{.Quote}}<br/>
       Nome: <input type="text" name="player" value="{{.Player}}" pattern="{1,}" required/><br/>
       Resposta: <input type="text" name="answer" pattern="{1,}" required autocomplete="off"/><br/>
-	  Número de jogadores: <input type="number" name="numPlayers" value="{{.NumPlayers}}" min="3"/><br/>
 	  Jogadores:
 	  <ul>
 	  {{range $player := .Players}}

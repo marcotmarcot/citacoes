@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"os"
 	"strings"
+	"time"
 )
 
 type GameImpl struct {
@@ -15,7 +16,7 @@ type GameImpl struct {
 	Points     map[string]int
 	quotes     []game.Quote
 	quoteIndex int
-	numPlayers int
+	lastSeen   map[string]time.Time
 }
 
 func NewGame() *GameImpl {
@@ -32,9 +33,9 @@ func NewGame() *GameImpl {
 		g.quotes = append(g.quotes, game.Quote{q[0], strings.ToLower(q[1])})
 	}
 	g.quotes = shuffleQuotes(g.quotes)
-	g.Points = make(map[string]int)
+	g.Points = map[string]int{}
 	g.quoteIndex = 0
-	g.numPlayers = 3
+	g.lastSeen = map[string]time.Time{}
 	g.Round = round.NewRound(g)
 	return g
 }
@@ -48,11 +49,23 @@ func (g *GameImpl) Quote() game.Quote {
 }
 
 func (g *GameImpl) NumPlayers() int {
-	return g.numPlayers
+	n := 0
+	for _, timeSeen := range g.lastSeen {
+		if time.Since(timeSeen).Seconds() < 30 {
+			n++
+		}
+	}
+	if n < 3 {
+		n = 3
+	}
+	return n
 }
 
 // Returns if the round is ready to start.
 func (g *GameImpl) NewRound(player string, clear bool) bool {
+	if player != "" {
+		g.lastSeen[player] = time.Now()
+	}
 	if clear && g.Round.IsPlaying(player) {
 		g.Round = round.NewRound(g)
 	}
@@ -62,12 +75,9 @@ func (g *GameImpl) NewRound(player string, clear bool) bool {
 	return true
 }
 
-func (g *GameImpl) SetNumPlayers(numPlayers int) {
-	g.numPlayers = numPlayers
-}
-
 // Returns if all the answers were already collected.
 func (g *GameImpl) NewAnswer(player, answer string) bool {
+	g.lastSeen[player] = time.Now()
 	// Register new player. This is important so that all the players are shown
 	// on the results, even those that don't have any points.
 	if _, ok := g.Points[player]; !ok {
@@ -78,6 +88,7 @@ func (g *GameImpl) NewAnswer(player, answer string) bool {
 
 // Returns if all the players have already chosen and answer.
 func (g *GameImpl) AnswerChosen(player, choice string) bool {
+	g.lastSeen[player] = time.Now()
 	pointed, complete := g.Round.AnswerChosen(player, choice)
 	for _, player := range pointed {
 		g.Points[player]++
