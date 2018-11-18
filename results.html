@@ -36,8 +36,8 @@
     </ul>
     Placar:
     <ul>
-      {{range $player, $point := .Points}}
-      <li>{{$player}}: {{$point}}</li>
+      {{range .Points}}
+      <li>{{.Player}}: {{.Points}}</li>
       {{end}}
     </ul>
 	Jogadores preparados:
