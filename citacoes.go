@@ -44,7 +44,6 @@ func checkInHandler(w http.ResponseWriter, r *http.Request) {
 func writeAnswerHandler(w http.ResponseWriter, r *http.Request) {
 	player := r.FormValue("player")
 	clear := r.FormValue("clear") == "1"
-	log.Printf("writeAnswer(%v, %v)", player, clear)
 
 	if !g.NewRound(player, clear) {
 		url := fmt.Sprintf("/results?player=%s", player)
@@ -65,7 +64,6 @@ func writeAnswerHandler(w http.ResponseWriter, r *http.Request) {
 func answerWrittenHandler(w http.ResponseWriter, r *http.Request) {
 	player := r.FormValue("player")
 	answer := strings.ToLower(r.FormValue("answer"))
-	log.Printf("answerWritten(%v, %v)", player, answer)
 
 	if g.NewAnswer(player, answer) {
 		url := fmt.Sprintf("/chooseAnswer?player=%s&answer=%s", player, answer)
@@ -89,7 +87,6 @@ func answerWrittenHandler(w http.ResponseWriter, r *http.Request) {
 func chooseAnswerHandler(w http.ResponseWriter, r *http.Request) {
 	player := r.FormValue("player")
 	answer := r.FormValue("answer")
-	log.Printf("chooseAnswer(%v, %v)", player, answer)
 
 	if len(g.Round.PlayersReady(round.AnsweredStatus)) < g.NumPlayers() {
 		url := fmt.Sprintf("/answerWritten?player=%s&answer=", player, answer)
@@ -117,7 +114,6 @@ func chooseAnswerHandler(w http.ResponseWriter, r *http.Request) {
 func answerChosenHandler(w http.ResponseWriter, r *http.Request) {
 	player := r.FormValue("player")
 	choice := r.FormValue("choice")
-	log.Printf("answerChosen(%v, %v)", player, choice)
 
 	if g.AnswerChosen(player, choice) {
 		url := fmt.Sprintf("/results?player=%s", player)
@@ -139,7 +135,6 @@ func answerChosenHandler(w http.ResponseWriter, r *http.Request) {
 
 func resultsHandler(w http.ResponseWriter, r *http.Request) {
 	player := r.FormValue("player")
-	log.Printf("results(%v)", player)
 
 	if len(g.Round.PlayersReady(round.ChosenStatus)) < g.NumPlayers() {
 		url := fmt.Sprintf("/answerChosen?player=%s", player)
@@ -163,13 +158,4 @@ func resultsHandler(w http.ResponseWriter, r *http.Request) {
 		Missing      int
 		PlayersReady []string
 	}{player, g.Quote(), g.Round.TruthVoters(), votedAnswers, g.Points(), g.NumPlayers() - len(ready), ready})
-}
-
-func parseInt(s string, def int) int {
-	if i, err := strconv.Atoi(s); err != nil {
-		log.Printf("Could not parse int %v: %v", s, err)
-		return 3
-	} else {
-		return i
-	}
 }
