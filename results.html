@@ -10,7 +10,14 @@
   <body>
     <a href="/?player={{.Player}}&clear=1">Nova rodada</a><br/><br/>
     {{.Quote.Text}}<br/>
-    A resposta certa é <strong>{{.Quote.Truth}}</strong>.<br/><br/>
+    A resposta certa é <strong>{{.Quote.Truth}}</strong>:<br/><br/>
+    <ul>
+      {{range .TruthVoters}}
+      <li>
+        {{.}}
+      </li>
+      {{end}}
+    </ul>
     {{range $player, $point := .Points}}
     {{$player}}: {{$point}}<br/>
     {{end}}

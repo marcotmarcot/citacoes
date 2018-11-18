@@ -130,6 +130,11 @@ func (r *Round) VotedAnswers(player string) []VotedAnswer {
 	return answers
 }
 
+// Returns the players that voted in the Truth.
+func (r *Round) TruthVoters() []string {
+	return r.voters[r.g.Quote().Truth]
+}
+
 type Status int
 
 const (

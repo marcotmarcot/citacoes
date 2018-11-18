@@ -143,11 +143,12 @@ func resultsHandler(w http.ResponseWriter, r *http.Request) {
 	t.Execute(w, struct {
 		Player       string
 		Quote        game.Quote
+		TruthVoters  []string
 		Answers      []round.VotedAnswer
 		Points       map[string]int
 		Missing      int
 		PlayersReady []string
-	}{player, g.Quote(), votedAnswers, g.Points, g.NumPlayers() - len(ready), ready})
+	}{player, g.Quote(), g.Round.TruthVoters(), votedAnswers, g.Points, g.NumPlayers() - len(ready), ready})
 }
 
 func parseInt(s string, def int) int {
