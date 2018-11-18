@@ -1,28 +1,29 @@
 package main
 
 import (
-	"encoding/csv"
+	"citacoes/game"
+	"citacoes/gameimpl"
+	"citacoes/round"
 	"flag"
 	"fmt"
 	"html/template"
 	"log"
 	"math/rand"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 )
 
 var (
-	g  *game
+	g  *gameimpl.GameImpl
 	ip = flag.Int("port", 8080, "port to run the game")
 )
 
 func main() {
 	flag.Parse()
 	rand.Seed(time.Now().Unix())
-	g = newGame()
+	g = gameimpl.NewGame()
 	http.HandleFunc("/", writeAnswerHandler)
 	http.HandleFunc("/answerWritten", answerWrittenHandler)
 	http.HandleFunc("/chooseAnswer", chooseAnswerHandler)
@@ -35,7 +36,7 @@ func writeAnswerHandler(w http.ResponseWriter, r *http.Request) {
 	player := r.FormValue("player")
 	clear := r.FormValue("clear") == "1"
 
-	if g.newRound(player, clear) {
+	if g.NewRound(player, clear) {
 		url := fmt.Sprintf("/results?player=%s", player)
 		http.Redirect(w, r, url, 307)
 		return
@@ -49,7 +50,7 @@ func writeAnswerHandler(w http.ResponseWriter, r *http.Request) {
 		Player, Quote string
 		NumPlayers    int
 		Players       []string
-	}{player, g.currentText(), g.numPlayers, g.playersReady(0)})
+	}{player, g.Quote().Text, g.NumPlayers(), g.Round.PlayersReady(round.NotAnsweredStatus)})
 }
 
 func answerWrittenHandler(w http.ResponseWriter, r *http.Request) {
@@ -57,13 +58,13 @@ func answerWrittenHandler(w http.ResponseWriter, r *http.Request) {
 	answer := strings.ToLower(r.FormValue("answer"))
 	numPlayers := parseInt(r.FormValue("numPlayers"), 3)
 
-	g.numPlayers = numPlayers
-	if g.newAnswer(player, answer) {
+	g.SetNumPlayers(numPlayers)
+	if g.NewAnswer(player, answer) {
 		url := fmt.Sprintf("/chooseAnswer?player=%s&answer=%s", player, answer)
 		http.Redirect(w, r, url, 307)
 		return
 	}
-	ready := g.playersReady(answeredStatus)
+	ready := g.Round.PlayersReady(round.AnsweredStatus)
 
 	t, err := template.ParseFiles("answerWritten.html")
 	if err != nil {
@@ -74,20 +75,20 @@ func answerWrittenHandler(w http.ResponseWriter, r *http.Request) {
 		Missing      int
 		PlayersReady []string
 		Answer       string
-	}{player, g.numPlayers - len(ready), ready, answer})
+	}{player, g.NumPlayers() - len(ready), ready, answer})
 }
 
 func chooseAnswerHandler(w http.ResponseWriter, r *http.Request) {
 	player := r.FormValue("player")
 	answer := r.FormValue("answer")
 
-	if g.gameStatus() < answeredStatus {
+	if g.Round.Status() < round.AnsweredStatus {
 		url := fmt.Sprintf("/answerWritten?player=%s&answer=", player, answer)
 		http.Redirect(w, r, url, 307)
 		return
 	}
 
-	if choice, noChoice := g.noChoice(player, answer); noChoice {
+	if choice, noChoice := g.Round.NoChoice(player, answer); noChoice {
 		url := fmt.Sprintf("/answerChosen?player=%s&choice=%s", player, choice)
 		http.Redirect(w, r, url, 307)
 		return
@@ -101,19 +102,19 @@ func chooseAnswerHandler(w http.ResponseWriter, r *http.Request) {
 		Player  string
 		Text    string
 		Choices []string
-	}{player, g.currentText(), g.choices(player, answer)})
+	}{player, g.Quote().Text, g.Round.Choices(player, answer)})
 }
 
 func answerChosenHandler(w http.ResponseWriter, r *http.Request) {
 	player := r.FormValue("player")
 	choice := r.FormValue("choice")
 
-	if g.answerChosen(player, choice) {
+	if g.AnswerChosen(player, choice) {
 		url := fmt.Sprintf("/results?player=%s", player)
 		http.Redirect(w, r, url, 307)
 		return
 	}
-	ready := g.playersReady(chosenStatus)
+	ready := g.Round.PlayersReady(round.ChosenStatus)
 
 	t, err := template.ParseFiles("answerChosen.html")
 	if err != nil {
@@ -123,20 +124,20 @@ func answerChosenHandler(w http.ResponseWriter, r *http.Request) {
 		Player       string
 		Missing      int
 		PlayersReady []string
-	}{player, g.numPlayers - len(ready), ready})
+	}{player, g.NumPlayers() - len(ready), ready})
 }
 
 func resultsHandler(w http.ResponseWriter, r *http.Request) {
 	player := r.FormValue("player")
 
-	if g.gameStatus() < chosenStatus {
+	if g.Round.Status() < round.ChosenStatus {
 		url := fmt.Sprintf("/answerChosen?player=%s", player)
 		http.Redirect(w, r, url, 307)
 		return
 	}
 
-	votedAnswers := g.votedAnswers(player)
-	ready := g.playersReady(seenResultStatus)
+	votedAnswers := g.Round.VotedAnswers(player)
+	ready := g.Round.PlayersReady(round.SeenResultStatus)
 
 	t, err := template.ParseFiles("results.html")
 	if err != nil {
@@ -144,216 +145,12 @@ func resultsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	t.Execute(w, struct {
 		Player       string
-		Quote        quote
-		Answers      []votedAnswer
+		Quote        game.Quote
+		Answers      []round.VotedAnswer
 		Points       map[string]int
 		Missing      int
 		PlayersReady []string
-	}{player, g.currentQuote(), votedAnswers, g.points, g.numPlayers - len(ready), ready})
-}
-
-type game struct {
-	quotes       []quote
-	quoteIndex   int
-	points       map[string]int
-	submissions  []submission
-	playerStatus map[string]status
-	voters       map[string][]string
-	numPlayers   int
-}
-
-func newGame() *game {
-	g := &game{}
-	quotesFile, err := os.Open("citacoes.csv")
-	if err != nil {
-		log.Fatal(err)
-	}
-	quotesFields, err := csv.NewReader(quotesFile).ReadAll()
-	if err != nil {
-		log.Fatal(err)
-	}
-	for _, q := range quotesFields {
-		g.quotes = append(g.quotes, quote{q[0], strings.ToLower(q[1])})
-	}
-	g.quotes = shuffleQuotes(g.quotes)
-	g.points = make(map[string]int)
-	g.quoteIndex = 0
-	g.numPlayers = 3
-	g.restart()
-	return g
-}
-
-// Returns if the round is ready to start.
-func (g *game) newRound(player string, clear bool) bool {
-	_, ok := g.playerStatus[player]
-	if clear && ok {
-		g.restart()
-	}
-	if g.gameStatus() < seenResultStatus {
-		return false
-	}
-	return true
-}
-
-// Returns if all the answers were already collected.
-func (g *game) newAnswer(player, answer string) bool {
-	// Register new player.
-	if _, ok := g.points[player]; !ok {
-		g.points[player] = 0
-	}
-	// Register submission if this player has not yet registered their
-	// submission.
-	if g.playerStatus[player] < answeredStatus {
-		g.playerStatus[player] = answeredStatus
-		g.submissions = append(g.submissions, submission{player, answer})
-	}
-	return g.gameStatus() >= answeredStatus
-}
-
-// Returns the only option this player has if they have only one option.
-func (g *game) noChoice(player, answer string) (string, bool) {
-	choices := g.choices(player, answer)
-	if len(choices) == 1 {
-		return choices[0], true
-	}
-	return "", len(choices) == 0
-}
-
-// Returns the options that this player has.
-func (g *game) choices(player, answer string) []string {
-	answers := []string{}
-	seen := map[string]bool{}
-	if g.currentTruth() != answer {
-		answers = append(answers, g.currentTruth())
-		seen[g.currentTruth()] = true
-	}
-	for _, s := range g.submissions {
-		if s.Player == player {
-			continue
-		}
-		a := s.Answer
-		if seen[a] || a == answer {
-			continue
-		}
-		seen[a] = true
-		answers = append(answers, a)
-	}
-	return shuffleStrings(answers)
-}
-
-// Returns if all the answers were already chosen.
-func (g *game) answerChosen(player, choice string) bool {
-	if g.playerStatus[player] < chosenStatus {
-		g.playerStatus[player] = chosenStatus
-		g.voters[choice] = append(g.voters[choice], player)
-		if choice == g.currentTruth() {
-			g.points[player]++
-		}
-		for _, s := range g.submissions {
-			if choice == s.Answer {
-				g.points[s.Player]++
-			}
-			if s.Player == player && s.Answer == g.currentTruth() {
-				g.points[player]++
-			}
-		}
-	}
-
-	return g.gameStatus() >= chosenStatus
-}
-
-// Returns the answers with their votes and update the status of the player.
-func (g *game) votedAnswers(player string) []votedAnswer {
-	g.playerStatus[player] = seenResultStatus
-
-	var answers []votedAnswer
-	for _, s := range g.submissions {
-		answers = append(answers, votedAnswer{s.Player, s.Answer, g.voters[s.Answer]})
-	}
-	return answers
-}
-
-func (g *game) restart() {
-	g.submissions = nil
-	g.playerStatus = make(map[string]status)
-	g.voters = make(map[string][]string)
-	g.quoteIndex++
-}
-
-func (g *game) currentQuote() quote {
-	return g.quotes[g.quoteIndex]
-}
-
-func (g *game) currentText() string {
-	return g.currentQuote().Text
-}
-
-func (g *game) currentTruth() string {
-	return g.currentQuote().Truth
-}
-
-func (g *game) playersReady(s status) []string {
-	players := []string{}
-	for player, playerStatus := range g.playerStatus {
-		if playerStatus >= s {
-			players = append(players, player)
-		}
-	}
-	return players
-}
-
-// Returns the status of the game, which is the status of the player in the
-// earliest status.
-func (g *game) gameStatus() status {
-	if len(g.playerStatus) < g.numPlayers {
-		return notAnsweredStatus
-	}
-	s := seenResultStatus
-	for _, playerStatus := range g.playerStatus {
-		if playerStatus < s {
-			s = playerStatus
-		}
-	}
-	return s
-}
-
-type quote struct {
-	Text, Truth string
-}
-
-type submission struct {
-	Player, Answer string
-}
-
-type status int
-
-const (
-	notAnsweredStatus status = iota
-	answeredStatus
-	chosenStatus
-	seenResultStatus
-)
-
-type votedAnswer struct {
-	Player string
-	Answer string
-	Voters []string
-}
-
-func shuffleQuotes(vals []quote) []quote {
-	ret := make([]quote, len(vals))
-	for i, randIndex := range rand.Perm(len(vals)) {
-		ret[i] = vals[randIndex]
-	}
-	return ret
-}
-
-func shuffleStrings(vals []string) []string {
-	ret := make([]string, len(vals))
-	for i, randIndex := range rand.Perm(len(vals)) {
-		ret[i] = vals[randIndex]
-	}
-	return ret
+	}{player, g.Quote(), votedAnswers, g.Points, g.NumPlayers() - len(ready), ready})
 }
 
 func parseInt(s string, def int) int {
