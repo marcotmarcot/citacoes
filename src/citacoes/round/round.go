@@ -3,6 +3,7 @@ package round
 import (
 	"citacoes/game"
 	"math/rand"
+	"sort"
 )
 
 type Round struct {
@@ -28,21 +29,6 @@ func (r *Round) IsPlaying(player string) bool {
 	return ok
 }
 
-// Returns the status of the game, which is the status of the player in the
-// earliest status.
-func (r *Round) Status() Status {
-	if len(r.playerStatus) < r.g.NumPlayers() {
-		return NotAnsweredStatus
-	}
-	s := SeenResultStatus
-	for _, playerStatus := range r.playerStatus {
-		if playerStatus < s {
-			s = playerStatus
-		}
-	}
-	return s
-}
-
 func (r *Round) PlayersReady(status Status) []string {
 	players := []string{}
 	for player, playerStatus := range r.playerStatus {
@@ -50,6 +36,7 @@ func (r *Round) PlayersReady(status Status) []string {
 			players = append(players, player)
 		}
 	}
+	sort.Strings(players)
 	return players
 }
 
@@ -60,7 +47,7 @@ func (r *Round) NewAnswer(player, answer string) bool {
 		r.playerStatus[player] = AnsweredStatus
 		r.submissions = append(r.submissions, Submission{player, answer})
 	}
-	return r.Status() >= AnsweredStatus
+	return len(r.PlayersReady(AnsweredStatus)) >= r.g.NumPlayers()
 
 }
 
@@ -116,7 +103,7 @@ func (r *Round) AnswerChosen(player, choice string) (pointed []string, complete 
 		}
 	}
 
-	return pointed, r.Status() >= ChosenStatus
+	return pointed, len(r.PlayersReady(ChosenStatus)) >= r.g.NumPlayers()
 }
 
 // Returns the answers with their votes and update the status of the player.
