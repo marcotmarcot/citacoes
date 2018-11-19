@@ -1,4 +1,5 @@
 from collections import Counter
+import heapq
 import os
 import pickle
 import re
@@ -27,60 +28,76 @@ def main(text, source):
 
 
 def process_sentence(df, source, sent):
-    answer = None
-    tokens = []
-    root_i = -1
-    for token in sent:
-        if token.dep_ == 'ROOT':
-            root_i = token.i
-            i = root_i - 1
-            answer = []
-            for left in reversed(list(token.lefts)):
-                if left.i == i and left.dep_ in ['det', 'expl', 'advmod']:
-                    i -= 1
-                    tokens.pop()
-                    answer.append(left.text)
-                else:
-                    break
-            answer.append(token.text)
-            answer = ' '.join(answer)
-            tokens.append('__________')
-        else:
-            tokens.append(token.text)
-    sentence, answer = post_process(join(tokens), answer)
-    if is_ok(tokens, sentence, answer):
+    sentence, answer = post_process(sent, choose_token(df, sent))
+
+    if is_ok(sentence, answer):
         return '"{} ({})","{}"'.format(sentence, source, answer)
 
 
-def post_process(sentence, answer):
-    sentence = re.sub(r'\s+', ' ', sentence).strip()
+def expand(token):
+    deps = ['det', 'expl', 'advmod', 'nummod', 'compound']
+    expanded = [token]
+    for left in reversed(list(token.lefts)):
+        if left.i == (expanded[0].i - 1) and left.dep_ in deps:
+            expanded.insert(0, left)
+        else:
+            break
+    for right in token.rights:
+        if right.i == (expanded[-1].i + 1) and right.dep_ in deps:
+            expanded.append(right)
+        else:
+            break
+    return expanded
+
+
+def choose_token(df, sent):
+    candidates = []
+    for token in sent:
+        if token.dep_ == 'ROOT':
+            candidates.append(expand(token))
+        elif token.dep_ in ['nsubj', 'nsubjpass', 'dobj', 'iobj', 'ccomp', 'xcomp'] and good_answer(token.text):
+            candidates.append(expand(token))
+
+    def dfsum(tokens):
+        return sum(df.get(t, -1) for t in tokens)
+
+    return heapq.nlargest(1, candidates, key=dfsum)[0]
+
+
+def post_process(sent, answer):
+    marker = '_' * 10
+
+    start = answer[0].idx - sent.start_char
+    end = (answer[-1].idx - sent.start_char) + len(answer[-1].text)
+    new_sent = sent.text[:start] + marker + sent.text[end:]
+
+    new_answer = sent.text[start:end]
+
+    # Fix extra spaces
+    new_sent = re.sub(r'\s+', ' ', new_sent).strip()
+
     # Add any - before or after ____ to the answer
-    left, right = re.search(r'([^\s]+-)?_+(-[^\s]+)?', sentence).groups()
+    left, right = re.search(r'(\w+-)?_+(-\w+)?', new_sent).groups()
     if left:
-        answer = left + answer
+        new_answer = left + new_answer
     if right:
-        answer += right
+        new_answer += right
+
     # Now replace the xxx-___-xxx pattern with ___
-    sentence = re.sub(r'([^\s]+-)?(_+)(-[^\s]+)?', r'\2', sentence)
-    return sentence, answer
+    new_sent = re.sub(r'(\w+-)?(_+)(-\w+)?', r'\2', new_sent)
+
+    return new_sent, new_answer
 
 
-def is_ok(tokens, sentence, answer):
-    return answer and len(answer) > 3 \
+def good_answer(answer):
+    return answer and len(answer) > 3
+
+
+def is_ok(sentence, answer):
+    return good_answer(answer) \
         and ((sentence[0] != '_' and sentence[0] == sentence[0].upper()) or (sentence[0] == '_' and answer[0] == answer[0].upper())) \
         and (sentence[-1] in ('.', ';', '!', '?')) \
-        and len(tokens) > 15
-
-
-def join(tokens):
-    sentence = ' '.join(tokens)
-    sentence = sentence.replace(' .', '.')
-    sentence = sentence.replace(' ;', ';')
-    sentence = sentence.replace(' ,', ',')
-    sentence = sentence.replace(' !', '!')
-    sentence = sentence.replace(' ?', '?')
-    sentence = sentence.replace(' - ', '-')
-    return sentence
+        and len(sentence) > 50
 
 
 if __name__ == "__main__":
