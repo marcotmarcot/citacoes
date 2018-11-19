@@ -95,7 +95,9 @@ def good_answer(answer):
 
 def is_ok(sentence, answer):
     return good_answer(answer) \
-        and ((sentence[0] != '_' and sentence[0] == sentence[0].upper()) or (sentence[0] == '_' and answer[0] == answer[0].upper())) \
+        and sentence[0] != '_' \
+        and sentence[0] == sentence[0].upper() \
+        and (sentence[0] not in ('.', ';', '!', '?')) \
         and (sentence[-1] in ('.', ';', '!', '?')) \
         and len(sentence) > 50
 
