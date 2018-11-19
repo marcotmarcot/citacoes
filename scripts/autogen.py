@@ -1,6 +1,6 @@
 from collections import Counter
 import typing
-import heapq
+from typing import Optional, List, Tuple
 import os
 import pickle
 import re
@@ -28,21 +28,19 @@ def main(text: str, source: str):
 
 def process_sentence(
     wf: typing.Counter[str], source: str, sent: spacy.tokens.Span
-) -> typing.Optional[str]:
+) -> Optional[str]:
     token = choose_token(wf, sent)
     sentence, answer = post_process(sent, token)
 
     if is_ok(sentence, answer):
-        return '"{} ({})","{}","{}"'.format(
-            sentence, source, answer, [t.dep_ for t in token]
-        )
+        return '"{} ({})","{}"'.format(sentence, source, answer)
 
     return None
 
 
 def post_process(
-    sent: spacy.tokens.Span, answer: typing.List[spacy.tokens.Token]
-) -> typing.Tuple[str, str]:
+    sent: spacy.tokens.Span, answer: List[spacy.tokens.Token]
+) -> Tuple[str, str]:
     marker = "_" * 10
 
     start = answer[0].idx - sent.start_char
@@ -54,25 +52,27 @@ def post_process(
     # Fix extra spaces
     new_sent = re.sub(r"\s+", " ", new_sent).strip()
 
+    word = r"(?:\w|-)"
+    regex = re.compile(r"({word}+-)?(_+)(-{word}+)?".format(word=word))
     # Add any - before or after ____ to the answer
-    match = re.search(r"(\w+-)?_+(-\w+)?", new_sent)
+    match = regex.search(new_sent)
     if match:
-        left, right = match.groups()
+        left, _, right = match.groups()
         if left:
             new_answer = left + new_answer
         if right:
             new_answer += right
 
     # Now replace the xxx-___-xxx pattern with ___
-    new_sent = re.sub(r"(\w+-)?(_+)(-\w+)?", r"\2", new_sent)
+    new_sent = regex.sub(r"\2", new_sent)
 
     return new_sent, new_answer
 
 
 def choose_token(
     wf: typing.Counter[str], sent: spacy.tokens.Span
-) -> typing.List[spacy.tokens.Token]:
-    candidates = []
+) -> List[spacy.tokens.Token]:
+    candidates = []  # type: List[List[spacy.tokens.Token]]
     deps = ["ccomp", "csubj"]
     for token in sent:
         expanded = expand(token)
@@ -84,10 +84,10 @@ def choose_token(
     def wfsum(tokens):
         return sum(wf.get(t.text, -1) for t in tokens if len(t.text) > 2)
 
-    return heapq.nlargest(1, candidates, key=wfsum)[0]
+    return max(candidates, key=wfsum)
 
 
-def expand(token: spacy.tokens.Token) -> typing.List[spacy.tokens.Token]:
+def expand(token: spacy.tokens.Token) -> List[spacy.tokens.Token]:
     deps = ["aux", "amod", "neg", "det", "expl", "advmod", "nummod", "compound"]
     expanded = [token]
     for left in reversed(list(token.lefts)):
