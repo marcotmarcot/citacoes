@@ -18,9 +18,7 @@ def main(text: str, source: str):
     doc = nlp(txt, disable=["ner"])
 
     # calculate word frequency
-    wf: typing.Counter[str] = Counter()
-    for token in doc:
-        wf.update(token.text.lower())
+    wf: typing.Counter[str] = Counter(t.text for t in doc)
 
     for sent in doc.sents:
         sentence = process_sentence(wf, source, sent)
@@ -31,10 +29,13 @@ def main(text: str, source: str):
 def process_sentence(
     wf: typing.Counter[str], source: str, sent: spacy.tokens.Span
 ) -> typing.Optional[str]:
-    sentence, answer = post_process(sent, choose_token(wf, sent))
+    token = choose_token(wf, sent)
+    sentence, answer = post_process(sent, token)
 
     if is_ok(sentence, answer):
-        return '"{} ({})","{}"'.format(sentence, source, answer)
+        return '"{} ({})","{}","{}"'.format(
+            sentence, source, answer, [t.dep_ for t in token]
+        )
 
     return None
 
@@ -72,21 +73,22 @@ def choose_token(
     wf: typing.Counter[str], sent: spacy.tokens.Span
 ) -> typing.List[spacy.tokens.Token]:
     candidates = []
-    deps = ["nsubj", "nsubjpass", "dobj", "iobj", "ccomp", "xcomp"]
+    deps = ["ccomp", "csubj"]
     for token in sent:
+        expanded = expand(token)
         if token.dep_ == "ROOT":
-            candidates.append(expand(token))
-        elif token.dep_ in deps and good_answer(token.text):
-            candidates.append(expand(token))
+            candidates.append(expanded)
+        elif token.dep_ in deps and good_answer(" ".join(t.text for t in expanded)):
+            candidates.append(expanded)
 
     def wfsum(tokens):
-        return sum(wf.get(t, -1) for t in tokens)
+        return sum(wf.get(t.text, -1) for t in tokens if len(t.text) > 2)
 
     return heapq.nlargest(1, candidates, key=wfsum)[0]
 
 
 def expand(token: spacy.tokens.Token) -> typing.List[spacy.tokens.Token]:
-    deps = ["det", "expl", "advmod", "nummod", "compound"]
+    deps = ["aux", "amod", "neg", "det", "expl", "advmod", "nummod", "compound"]
     expanded = [token]
     for left in reversed(list(token.lefts)):
         if left.i == (expanded[0].i - 1) and left.dep_ in deps:
