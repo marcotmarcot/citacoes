@@ -1,40 +1,47 @@
 from collections import Counter
+import typing
 import heapq
 import os
 import pickle
 import re
 import sys
 
-import spacy
+import spacy  # type: ignore
 from spacy import symbols
 
 
-def main(text, source):
+def main(text: str, source: str):
     with open(text) as fp:
         txt = fp.read()
 
     nlp = spacy.load("pt_core_news_sm")
-
     doc = nlp(txt, disable=["ner"])
 
-    df = Counter()
+    # calculate word frequency
+    wf: typing.Counter[str] = Counter()
     for token in doc:
-        df.update(token.text.lower())
+        wf.update(token.text.lower())
 
     for sent in doc.sents:
-        sentence = process_sentence(df, source, sent)
+        sentence = process_sentence(wf, source, sent)
         if sentence is not None:
             print(sentence)
 
 
-def process_sentence(df, source, sent):
-    sentence, answer = post_process(sent, choose_token(df, sent))
+def process_sentence(
+    wf: typing.Counter[str], source: str, sent: spacy.tokens.Span
+) -> typing.Optional[str]:
+    sentence, answer = post_process(sent, choose_token(wf, sent))
 
     if is_ok(sentence, answer):
         return '"{} ({})","{}"'.format(sentence, source, answer)
 
+    return None
 
-def post_process(sent, answer):
+
+def post_process(
+    sent: spacy.tokens.Span, answer: typing.List[spacy.tokens.Token]
+) -> typing.Tuple[str, str]:
     marker = "_" * 10
 
     start = answer[0].idx - sent.start_char
@@ -47,11 +54,13 @@ def post_process(sent, answer):
     new_sent = re.sub(r"\s+", " ", new_sent).strip()
 
     # Add any - before or after ____ to the answer
-    left, right = re.search(r"(\w+-)?_+(-\w+)?", new_sent).groups()
-    if left:
-        new_answer = left + new_answer
-    if right:
-        new_answer += right
+    match = re.search(r"(\w+-)?_+(-\w+)?", new_sent)
+    if match:
+        left, right = match.groups()
+        if left:
+            new_answer = left + new_answer
+        if right:
+            new_answer += right
 
     # Now replace the xxx-___-xxx pattern with ___
     new_sent = re.sub(r"(\w+-)?(_+)(-\w+)?", r"\2", new_sent)
@@ -59,7 +68,9 @@ def post_process(sent, answer):
     return new_sent, new_answer
 
 
-def choose_token(df, sent):
+def choose_token(
+    wf: typing.Counter[str], sent: spacy.tokens.Span
+) -> typing.List[spacy.tokens.Token]:
     candidates = []
     deps = ["nsubj", "nsubjpass", "dobj", "iobj", "ccomp", "xcomp"]
     for token in sent:
@@ -68,13 +79,13 @@ def choose_token(df, sent):
         elif token.dep_ in deps and good_answer(token.text):
             candidates.append(expand(token))
 
-    def dfsum(tokens):
-        return sum(df.get(t, -1) for t in tokens)
+    def wfsum(tokens):
+        return sum(wf.get(t, -1) for t in tokens)
 
-    return heapq.nlargest(1, candidates, key=dfsum)[0]
+    return heapq.nlargest(1, candidates, key=wfsum)[0]
 
 
-def expand(token):
+def expand(token: spacy.tokens.Token) -> typing.List[spacy.tokens.Token]:
     deps = ["det", "expl", "advmod", "nummod", "compound"]
     expanded = [token]
     for left in reversed(list(token.lefts)):
@@ -90,17 +101,17 @@ def expand(token):
     return expanded
 
 
-def good_answer(answer):
-    return answer and len(answer) > 3
+def good_answer(answer: str) -> bool:
+    return bool(answer and len(answer) > 3)
 
 
-def is_ok(sentence, answer):
+def is_ok(sentence: str, answer: str) -> bool:
     return (
         good_answer(answer)
         and sentence[0] != "_"
         and sentence[0] == sentence[0].upper()
-        and (sentence[0] not in (".", ";", "!", "?"))
-        and (sentence[-1] in (".", ";", "!", "?"))
+        and (sentence[0] not in ".;!?:")
+        and (sentence[-1] in ".;!?")
         and len(sentence) > 50
     )
 
