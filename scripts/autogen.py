@@ -1,6 +1,6 @@
 from collections import Counter
 import typing
-from typing import Optional, List, Tuple
+from typing import Any, Optional, List, Tuple
 import os
 import pickle
 import re
@@ -26,9 +26,7 @@ def main(text: str, source: str):
             print(sentence)
 
 
-def process_sentence(
-    wf: typing.Counter[str], source: str, sent: spacy.tokens.Span
-) -> Optional[str]:
+def process_sentence(wf: typing.Counter[str], source: str, sent: Any) -> Optional[str]:
     token = choose_token(wf, sent)
     sentence, answer = post_process(sent, token)
 
@@ -38,9 +36,7 @@ def process_sentence(
     return None
 
 
-def post_process(
-    sent: spacy.tokens.Span, answer: List[spacy.tokens.Token]
-) -> Tuple[str, str]:
+def post_process(sent: Any, answer: List[Any]) -> Tuple[str, str]:
     marker = "_" * 10
 
     start = answer[0].idx - sent.start_char
@@ -69,10 +65,8 @@ def post_process(
     return new_sent, new_answer
 
 
-def choose_token(
-    wf: typing.Counter[str], sent: spacy.tokens.Span
-) -> List[spacy.tokens.Token]:
-    candidates = []  # type: List[List[spacy.tokens.Token]]
+def choose_token(wf: typing.Counter[str], sent: Any) -> List[Any]:
+    candidates: List[List[Any]] = []
     deps = ["ccomp", "csubj"]
     for token in sent:
         expanded = expand(token)
@@ -87,7 +81,7 @@ def choose_token(
     return max(candidates, key=wfsum)
 
 
-def expand(token: spacy.tokens.Token) -> List[spacy.tokens.Token]:
+def expand(token: Any) -> List[Any]:
     deps = ["aux", "amod", "neg", "det", "expl", "advmod", "nummod", "compound"]
     expanded = [token]
     for left in reversed(list(token.lefts)):
