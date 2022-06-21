@@ -13,7 +13,7 @@ msgpack-numpy==0.4.3.2
 murmurhash==1.0.1
 mypy==0.641
 mypy-extensions==0.4.1
-numpy==1.15.4
+numpy==1.22.0
 plac==0.9.6
 preshed==2.0.1
 pt-core-news-sm==2.0.0
